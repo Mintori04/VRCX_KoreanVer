@@ -53,12 +53,11 @@
                                 style="width:100%">로그인</el-button>
                         </el-form-item>
                         <el-form-item>
-                            <el-button :loading="loginForm.loading" style="width:100%" @click="loginWithSteam()">Steam 으로
-                                로그인 하기</el-button>
+                            <el-button :loading="loginForm.loading" style="width:100%" @click="loginWithSteam()">Steam 으로 로그인 하기</el-button>
                         </el-form-item>
                     </el-form>
                     <div style="text-align:center;font-size:12px">
-                        <p>&copy; 2019-2020 <a href="https://github.com/pypy-vrc" target="_blank">pypy</a> (mina#5656)<br>한글화: Mintori(민토리#1207)
+                        <p>&copy; 2019-2021 <a href="https://github.com/pypy-vrc" target="_blank">pypy</a> (mina#5656)<br>한글화: Mintori(민토리#1207)
                         </p>
                         <p>VRCX는 VRChat 친구에 대한 정보를 제공하는 보조 애플리케이션 입니다. 이 애플리케이션은 비공식 VRChat API(VRCSDK)를 사용합니다.</p>
                         <p>VRCX는 VRChat의 승인을 받지 않았으며, VRChat 또는 VRChat의 제작 또는 관리에 공식적으로 참여한 사람의 견해나 의견을 반영하지 않습니다. VRChat은 VRChat Inc.의 상표입니다. VRChat © VRChat Inc.</p>
@@ -81,8 +80,10 @@
                         #title><span>차단 로그</span></template></el-menu-item>
                 <el-menu-item index="notification"><i class="el-icon-bell"></i><template
                         #title><span>알림</span></template></el-menu-item>
-                <el-menu-item index="more"><i class="el-icon-s-tools"></i><template #title><span>더보기</span></template>
-                </el-menu-item>
+                <el-menu-item index="profile"><i class="el-icon-user"></i><template
+                        #title><span>프로필</span></template></el-menu-item>
+                <el-menu-item index="settings"><i class="el-icon-s-tools"></i><template
+                        #title><span>더보기</span></template></el-menu-item>
             </el-menu>
         </div>
         <div class="x-container" v-show="$refs.menu &amp;&amp; $refs.menu.activeIndex === 'feed'">
@@ -135,13 +136,15 @@
                                     <el-popover placement="right" width="500px" trigger="click"><img class="x-link"
                                             slot="reference" v-lazy="scope.row.avatar[1]"
                                             style="flex:none;width:160px;height:120px;border-radius:4px"><img
-                                            v-lazy="scope.row.avatar[1]" style="width:500px;height:375px"></el-popover>
-                                    <span style="position:relative;top:-50px;margin:0 5px"><i
+                                            class="x-link" v-lazy="scope.row.avatar[1]" style="width:500px;height:375px"
+                                            @click="openExternalLink(scope.row.avatar[1])"></el-popover><span
+                                        style="position:relative;top:-50px;margin:0 5px"><i
                                             class="el-icon-right"></i></span>
                                     <el-popover placement="right" width="500px" trigger="click"><img class="x-link"
                                             slot="reference" v-lazy="scope.row.avatar[0]"
                                             style="flex:none;width:160px;height:120px;border-radius:4px"><img
-                                            v-lazy="scope.row.avatar[0]" style="width:500px;height:375px"></el-popover>
+                                            class="x-link" v-lazy="scope.row.avatar[0]" style="width:500px;height:375px"
+                                            @click="openExternalLink(scope.row.avatar[0])"></el-popover>
                                 </template></template><template v-else-if="scope.row.type === 'Status'">
                                 <el-tooltip placement="top"><template #content><span
                                             v-if="scope.row.status[1].status === 'active'">온라인</span><span
@@ -215,8 +218,9 @@
                     </template></el-table-column>
                 <el-table-column label="종류" prop="type" width="120"></el-table-column>
                 <el-table-column label="자세히" prop="data"><template v-once #default="scope">
-                        <location v-if="scope.row.type === 'Location'" :location="scope.row.data"></location><span
-                            class="x-link" v-else-if="scope.row.type !== 'Notification'" v-text="scope.row.data"
+                        <location v-if="scope.row.type === 'Location'" :location="scope.row.data[0]"
+                            :hint="scope.row.data[1]"></location><span class="x-link"
+                            v-else-if="scope.row.type !== 'Notification'" v-text="scope.row.data"
                             @click="lookupUser(scope.row.data)"></span>
                     </template></el-table-column>
             </data-tables>
@@ -474,7 +478,8 @@
                     <div style="margin:0 0 10px;display:flex;align-items:center">
                         <el-select v-model="notificationTable.filters[0].value" multiple clearable collapse-tags
                             style="flex:1" placeholder="필터">
-                            <el-option v-once v-for="type in ['requestInvite', 'invite', 'friendRequest', 'message']"
+                            <el-option v-once
+                                v-for="type in ['requestInvite', 'invite', 'requestInviteResponse', 'inviteResponse', 'friendRequest', 'message']"
                                 :key="type" :label="type" :value="type"></el-option>
                         </el-select>
                         <el-input v-model="notificationTable.filters[1].value" placeholder="검색"
@@ -490,66 +495,47 @@
                                     formatDate('YYYY-MM-DD HH24:MI:SS') }}</span></template><span>{{
                                 scope.row.created_at | formatDate('MM-DD HH24:MI') }}</span></el-tooltip>
                     </template></el-table-column>
-                <el-table-column label="종류" prop="type" width="120"><template v-once #default="scope">
+                <el-table-column label="종류" prop="type" width="150"><template v-once #default="scope">
                         <el-tooltip placement="top" v-if="scope.row.type === 'invite'"><template #content><span
                                     v-text="API.parseInviteLocation(scope.row)"></span></template><span class="x-link"
                                 v-text="scope.row.type" @click="showWorldDialog(scope.row.details.worldId)"></span>
                         </el-tooltip><span v-else v-text="scope.row.type"></span>
                     </template></el-table-column>
-                <el-table-column label="유저" prop="senderUsername"><template v-once #default="scope"><span
+                <el-table-column label="유저" prop="senderUsername" width="150"><template v-once #default="scope"><span
                             class="x-link" v-text="scope.row.senderUsername"
                             @click="showUserDialog(scope.row.senderUserId)"></span></template></el-table-column>
-                <el-table-column label="삭제" width="80" align="right"><template v-once #default="scope">
-                        <el-button v-if="scope.row.type === 'friendRequest'" type="text" icon="el-icon-check"
-                            size="mini" @click="acceptNotification(scope.row)"></el-button>
-                        <el-button type="text" icon="el-icon-close" size="mini" @click="hideNotification(scope.row)">
-                        </el-button>
+                <el-table-column label="사진" width="100" prop="photo"><template v-once #default="scope">
+                        <el-popover v-if="scope.row.details.imageUrl" placement="right" width="500px" trigger="click">
+                            <img class="x-link" slot="reference" v-lazy="scope.row.details.imageUrl"
+                                style="flex:none;height:60px;border-radius:4px"><img class="x-link"
+                                v-lazy="scope.row.details.imageUrl" style="width:500px"
+                                @click="openExternalLink(scope.row.details.imageUrl)"></el-popover>
                     </template></el-table-column>
+                <el-table-column label="메시지" prop="message"><template v-once #default="scope"><span
+                            v-if="scope.row.message" v-text="scope.row.message"></span><span
+                            v-else-if="scope.row.details.inviteMessage"
+                            v-text="scope.row.details.inviteMessage"></span><span
+                            v-else-if="scope.row.details.requestMessage"
+                            v-text="scope.row.details.requestMessage"></span><span
+                            v-else-if="scope.row.details.responseMessage"
+                            v-text="scope.row.details.responseMessage"></span></template></el-table-column>
+                <el-table-column label="삭제" width="80" align="right"><template v-once #default="scope"><template
+                            v-if="scope.row.senderUserId !== API.currentUser.id">
+                            <el-button v-if="scope.row.type === 'friendRequest'" type="text" icon="el-icon-check"
+                                size="mini" @click="acceptNotification(scope.row)"></el-button>
+                            <el-button v-else-if="scope.row.type === 'invite'" type="text"
+                                icon="el-icon-chat-line-square" size="mini"
+                                @click="showSendInviteResponseDialog(scope.row)"></el-button>
+                            <el-button v-else-if="scope.row.type === 'requestInvite'" type="text"
+                                icon="el-icon-chat-line-square" size="mini"
+                                @click="showSendInviteRequestResponseDialog(scope.row)"></el-button>
+                            <el-button type="text" icon="el-icon-close" size="mini"
+                                @click="hideNotification(scope.row)"></el-button>
+                        </template></template></el-table-column>
             </data-tables>
         </div>
-        <div class="x-container" v-show="$refs.menu &amp;&amp; $refs.menu.activeIndex === 'more'">
-            <div class="options-container" style="margin-top:0"><span class="header">VRCX</span>
-                <div class="x-friend-list" style="margin-top:10px">
-                    <div class="x-friend-item" style="cursor:default">
-                        <div class="detail"><span class="name">버전</span><span class="extra"
-                                v-text="appVersion"></span></div>
-                    </div>
-                    <div class="x-friend-item" @click="checkAppVersion()">
-                        <div class="detail"><span class="name">최신 버전</span><span class="extra"
-                                v-if="latestAppVersion" v-text="latestAppVersion"></span><span class="extra"
-                                v-else>클릭하여 새로고침</span></div>
-                    </div>
-                    <div class="x-friend-item" @click="openExternalLink('https://github.com/pypy-vrc/VRCX')">
-                        <div class="detail"><span class="name">Repository URL</span><span
-                                class="extra">https://github.com/pypy-vrc/VRCX</span></div>
-                    </div>
-                </div>
-            </div>
-            <div class="options-container"><span class="header">게임 정보</span>
-                <div class="x-friend-list" style="margin-top:10px">
-                    <div class="x-friend-item">
-                        <div class="detail" @click="API.getVisits()"><span class="name">온라인 유저</span><span
-                                class="extra" v-if="visits">{{visits}} 명의 유저가 온라인 상태입니다.</span><span class="extra"
-                                v-else>클릭하여 새로고침</span></div>
-                    </div>
-                </div>
-                <div style="margin-top:5px">
-                    <el-button-group>
-                        <el-button size="small" icon="el-icon-s-operation" @click="showLaunchOptions()">실행 옵션
-                        </el-button>
-                    </el-button-group>
-                </div>
-            </div>
-            <div class="options-container"><span class="header">직접 액세스</span>
-                <div style="margin-top:10px">
-                    <el-button-group>
-                        <el-button size="small" @click="promptUserDialog()">유저</el-button>
-                        <el-button size="small" @click="promptWorldDialog()">월드</el-button>
-                        <el-button size="small" @click="promptAvatarDialog()">아바타</el-button>
-                    </el-button-group>
-                </div>
-            </div>
-            <div class="options-container"><span class="header">내 프로필</span>
+        <div class="x-container" v-show="$refs.menu &amp;&amp; $refs.menu.activeIndex === 'profile'">
+            <div class="options-container" style="margin-top:0"><span class="header">프로필</span>
                 <div class="x-friend-list" style="margin-top:10px">
                     <div class="x-friend-item" @click="showUserDialog(API.currentUser.id)">
                         <div class="avatar"><img v-if="displayVRCPlusIconsAsAvatar &amp;&amp; API.currentUser.userIcon"
@@ -563,7 +549,7 @@
                                 API.currentUser.last_login | formatDate('YYYY-MM-DD HH24:MI:SS') }}</span></div>
                     </div>
                     <div class="x-friend-item" style="cursor:default">
-                        <div class="detail"><span class="name">2단계 인증</span><span class="extra">{{
+                        <div class="detail"><span class="name">2단계 인증 (2FA)</span><span class="extra">{{
                                 API.currentUser.twoFactorAuthEnabled ? 'Enabled' : 'Disabled' }}</span></div>
                     </div>
                 </div>
@@ -571,65 +557,208 @@
                     <el-button size="small" icon="el-icon-switch-button" @click="logout()">로그아웃</el-button>
                     <el-button size="small" icon="el-icon-printer" @click="showExportFriendsListDialog()">친구 목록 내보내기</el-button>
                 </div>
-                <div v-if="API.currentUser.$isVRCPlus" style="margin-top:30px"><span class="header">VRCPlus 아이콘</span>
-                    <el-tooltip placement="top"><template #content><span>새로고침</span></template>
-                        <el-button type="default" @click="displayVRCPlusIconsTable()" size="mini" icon="el-icon-refresh"
-                            circle style="margin-left:5px"></el-button>
-                    </el-tooltip>
-                    <el-tooltip placement="top"><template #content><span>결과 삭제</span></template>
-                        <el-button type="default" @click="VRCPlusIconsTable = []" size="mini" icon="el-icon-delete"
-                            circle style="margin-left:0"></el-button>
-                    </el-tooltip>
-                    <el-tooltip placement="top"><template #content><span>아이콘 리셋</span></template>
-                        <el-button type="default" @click="setVRCPlusIcon('')" size="mini" icon="el-icon-close" circle
-                            style="margin:0" :disabled="!API.currentUser.userIcon"></el-button>
-                    </el-tooltip><br>
-                    <div class="x-friend-item" v-for="icon in VRCPlusIconsTable" :key="icon.id"
-                        style="display:inline-block;margin-top:10px;cursor:default">
-                        <div class="vrcplus-icon" @click="setVRCPlusIcon(icon.id)"
-                            :class="{ 'current-vrcplus-icon': compareCurrentVRCPlusIcon(icon.id) }"><img class="avatar"
-                                v-if="icon.versions[1].file.url" v-lazy="icon.versions[1].file.url"></div>
-                        <el-tooltip placement="top"><template #content><span>삭제</span></template>
-                            <el-button type="default" @click="deleteVRCPlusIcon(icon.id)" size="mini"
-                                icon="el-icon-delete" circle style="float:right;"></el-button>
-                        </el-tooltip>
+            </div>
+            <div class="options-container"><span class="header">게임 정보</span>
+                <div class="x-friend-list" style="margin-top:10px">
+                    <div class="x-friend-item">
+                        <div class="detail" @click="API.getVisits()"><span class="name">온라인 유저</span><span
+                                class="extra" v-if="visits">{{visits}} 명의 유저가 온라인 상태입니다.</span><span class="extra"
+                                v-else>클릭하여 새로고침</span></div>
                     </div>
                 </div>
-                <div class="options-container"><span class="header">이전 표시 이름</span>
-                    <data-tables v-bind="pastDisplayNameTable" style="margin-top:10px">
-                        <el-table-column label="Date" prop="updated_at" sortable="custom"><template v-once
-                                #default="scope"><span>{{ scope.row.updated_at | formatDate('YYYY-MM-DD HH24:MI:SS')
-                                    }}</span></template></el-table-column>
-                        <el-table-column label="Name" prop="displayName"></el-table-column>
-                    </data-tables>
+            </div>
+            <div class="options-container"><span class="header">직접 액세스</span>
+                <div style="margin-top:10px">
+                    <el-button-group>
+                        <el-button size="small" @click="promptUserDialog()">유저</el-button>
+                        <el-button size="small" @click="promptWorldDialog()">월드</el-button>
+                        <el-button size="small" @click="promptAvatarDialog()">아바타</el-button>
+                    </el-button-group>
                 </div>
-                <div class="options-container"><span class="header">설정 JSON</span>
-                    <el-tooltip placement="top"><template #content><span>새로고침</span></template>
-                        <el-button type="default" @click="refreshConfigTreeData()" size="mini" icon="el-icon-refresh"
-                            circle style="margin-left:5px"></el-button>
+            </div>
+            <div class="options-container"><span class="header">초대 메시지</span>
+                <el-tooltip placement="top"><template #content><span>새로고침</span></template>
+                    <el-button type="default"
+                        @click="inviteMessageTable.visible = true; refreshInviteMessageTable('message')" size="mini"
+                        icon="el-icon-refresh" circle style="margin-left:5px"></el-button>
+                </el-tooltip>
+                <el-tooltip placement="top"><template #content><span>결과 삭제</span></template>
+                    <el-button type="default" @click="inviteMessageTable.visible = false" size="mini"
+                        icon="el-icon-delete" circle style="margin-left:0"></el-button>
+                </el-tooltip>
+                <data-tables v-if="inviteMessageTable.visible" v-bind="inviteMessageTable" style="margin-top:10px">
+                    <el-table-column label="Slot" prop="slot" sortable="custom" width="70"></el-table-column>
+                    <el-table-column label="Message" prop="message"></el-table-column>
+                    <el-table-column label="Cool Down" prop="updatedAt" sortable="custom" width="110" align="right">
+                        <template v-once #default="scope">
+                            <countdown-timer :datetime="scope.row.updatedAt" :hours="1"></countdown-timer>
+                        </template></el-table-column>
+                    <el-table-column label="Action" width="60" align="right"><template v-once #default="scope">
+                            <el-button type="text" icon="el-icon-edit" size="mini"
+                                @click="showEditInviteMessageDialog('message', scope.row)"></el-button>
+                        </template></el-table-column>
+                </data-tables>
+            </div>
+            <div class="options-container"><span class="header">초대 반응 메시지</span>
+                <el-tooltip placement="top"><template #content><span>새로고침</span></template>
+                    <el-button type="default"
+                        @click="inviteResponseMessageTable.visible = true; refreshInviteMessageTable('response')"
+                        size="mini" icon="el-icon-refresh" circle style="margin-left:5px"></el-button>
+                </el-tooltip>
+                <el-tooltip placement="top"><template #content><span>결과 삭제</span></template>
+                    <el-button type="default" @click="inviteResponseMessageTable.visible = false" size="mini"
+                        icon="el-icon-delete" circle style="margin-left:0"></el-button>
+                </el-tooltip>
+                <data-tables v-if="inviteResponseMessageTable.visible" v-bind="inviteResponseMessageTable"
+                    style="margin-top:10px">
+                    <el-table-column label="Slot" prop="slot" sortable="custom" width="70"></el-table-column>
+                    <el-table-column label="Message" prop="message"></el-table-column>
+                    <el-table-column label="Cool Down" prop="updatedAt" sortable="custom" width="110" align="right">
+                        <template v-once #default="scope">
+                            <countdown-timer :datetime="scope.row.updatedAt" :hours="1"></countdown-timer>
+                        </template></el-table-column>
+                    <el-table-column label="Action" width="60" align="right"><template v-once #default="scope">
+                            <el-button type="text" icon="el-icon-edit" size="mini"
+                                @click="showEditInviteMessageDialog('response', scope.row)"></el-button>
+                        </template></el-table-column>
+                </data-tables>
+            </div>
+            <div class="options-container"><span class="header">초대 요청 메시지</span>
+                <el-tooltip placement="top"><template #content><span>새로고침</span></template>
+                    <el-button type="default"
+                        @click="inviteRequestMessageTable.visible = true; refreshInviteMessageTable('request')"
+                        size="mini" icon="el-icon-refresh" circle style="margin-left:5px"></el-button>
+                </el-tooltip>
+                <el-tooltip placement="top"><template #content><span>결과 삭제</span></template>
+                    <el-button type="default" @click="inviteRequestMessageTable.visible = false" size="mini"
+                        icon="el-icon-delete" circle style="margin-left:0"></el-button>
+                </el-tooltip>
+                <data-tables v-if="inviteRequestMessageTable.visible" v-bind="inviteRequestMessageTable"
+                    style="margin-top:10px">
+                    <el-table-column label="Slot" prop="slot" sortable="custom" width="70"></el-table-column>
+                    <el-table-column label="Message" prop="message"></el-table-column>
+                    <el-table-column label="Cool Down" prop="updatedAt" sortable="custom" width="110" align="right">
+                        <template v-once #default="scope">
+                            <countdown-timer :datetime="scope.row.updatedAt" :hours="1"></countdown-timer>
+                        </template></el-table-column>
+                    <el-table-column label="Action" width="60" align="right"><template v-once #default="scope">
+                            <el-button type="text" icon="el-icon-edit" size="mini"
+                                @click="showEditInviteMessageDialog('request', scope.row)"></el-button>
+                        </template></el-table-column>
+                </data-tables>
+            </div>
+            <div class="options-container"><span class="header">초대 요청 반응 메시지</span>
+                <el-tooltip placement="top"><template #content><span>새로고침</span></template>
+                    <el-button type="default"
+                        @click="inviteRequestResponseMessageTable.visible = true; refreshInviteMessageTable('requestResponse')"
+                        size="mini" icon="el-icon-refresh" circle style="margin-left:5px"></el-button>
+                </el-tooltip>
+                <el-tooltip placement="top"><template #content><span>결과 삭제</span></template>
+                    <el-button type="default" @click="inviteRequestResponseMessageTable.visible = false" size="mini"
+                        icon="el-icon-delete" circle style="margin-left:0"></el-button>
+                </el-tooltip>
+                <data-tables v-if="inviteRequestResponseMessageTable.visible" v-bind="inviteRequestResponseMessageTable"
+                    style="margin-top:10px">
+                    <el-table-column label="Slot" prop="slot" sortable="custom" width="70"></el-table-column>
+                    <el-table-column label="Message" prop="message"></el-table-column>
+                    <el-table-column label="Cool Down" prop="updatedAt" sortable="custom" width="110" align="right">
+                        <template v-once #default="scope">
+                            <countdown-timer :datetime="scope.row.updatedAt" :hours="1"></countdown-timer>
+                        </template></el-table-column>
+                    <el-table-column label="Action" width="60" align="right"><template v-once #default="scope">
+                            <el-button type="text" icon="el-icon-edit" size="mini"
+                                @click="showEditInviteMessageDialog('requestResponse', scope.row)"></el-button>
+                        </template></el-table-column>
+                </data-tables>
+            </div>
+            <div class="options-container"><span class="header">VRCPlus 아이콘</span>
+                <el-tooltip placement="top"><template #content><span>새로고침</span></template>
+                    <el-button type="default" @click="displayVRCPlusIconsTable()" size="mini" icon="el-icon-refresh"
+                        circle style="margin-left:5px"></el-button>
+                </el-tooltip>
+                <el-tooltip placement="top"><template #content><span>결과 삭제</span></template>
+                    <el-button type="default" @click="VRCPlusIconsTable = {}" size="mini" icon="el-icon-delete" circle
+                        style="margin-left:0"></el-button>
+                </el-tooltip><template v-if="API.currentUser.$isVRCPlus">
+                    <el-tooltip placement="top"><template #content><span>아이콘 업로드</span></template>
+                        <div style="display:inline-block">
+                            <el-button type="default" @click="displayVRCPlusIconUpload" size="mini"
+                                icon="el-icon-upload2" circle style="margin-left:0"></el-button><input type="file"
+                                multiple accept="image/*" @change="onFileChangeVRCPlusIcon" id="VRCPlusIconUploadButton"
+                                style="display:none">
+                        </div>
                     </el-tooltip>
-                    <el-tooltip placement="top"><template #content><span>결과 삭제</span></template>
-                        <el-button type="default" @click="configTreeData = []" size="mini" icon="el-icon-delete" circle
-                            style="margin-left:0"></el-button>
+                </template>
+                <el-tooltip placement="top"><template #content><span>아이콘 리셋</span></template>
+                    <el-button type="default" @click="setVRCPlusIcon('')" size="mini" icon="el-icon-close" circle
+                        style="margin-left:0" :disabled="!API.currentUser.userIcon"></el-button>
+                </el-tooltip><br>
+                <div class="x-friend-item" v-for="icon in VRCPlusIconsTable" :key="icon.id"
+                    style="display:inline-block;margin-top:10px;cursor:default">
+                    <div class="vrcplus-icon" @click="setVRCPlusIcon(icon.id)"
+                        :class="{ 'current-vrcplus-icon': compareCurrentVRCPlusIcon(icon.id) }"><img class="avatar"
+                            v-if="icon.versions[1].file.url" v-lazy="icon.versions[1].file.url"></div>
+                    <el-tooltip placement="top"><template #content><span>삭제</span></template>
+                        <el-button type="default" @click="deleteVRCPlusIcon(icon.id)" size="mini" icon="el-icon-delete"
+                            circle style="float:right;"></el-button>
                     </el-tooltip>
-                    <el-tree :data="configTreeData" style="margin-top:10px;font-size:12px"><template
-                            #default="scope"><span><span v-text="scope.data.key"
-                                    style="font-weight:bold;margin-right:5px"></span><span v-if="!scope.data.children"
-                                    v-text="scope.data.value"></span></span></template></el-tree>
                 </div>
-                <div class="options-container"><span class="header">나의 JSON</span>
-                    <el-tooltip placement="top"><template #content><span>새로고침</span></template>
-                        <el-button type="default" @click="refreshCurrentUserTreeData()" size="mini"
-                            icon="el-icon-refresh" circle style="margin-left:5px"></el-button>
-                    </el-tooltip>
-                    <el-tooltip placement="top"><template #content><span>결과 삭제</span></template>
-                        <el-button type="default" @click="currentUserTreeData = []" size="mini" icon="el-icon-delete"
-                            circle style="margin-left:0"></el-button>
-                    </el-tooltip>
-                    <el-tree :data="currentUserTreeData" style="margin-top:10px;font-size:12px"><template
-                            #default="scope"><span><span v-text="scope.data.key"
-                                    style="font-weight:bold;margin-right:5px"></span><span v-if="!scope.data.children"
-                                    v-text="scope.data.value"></span></span></template></el-tree>
+            </div>
+            <div class="options-container"><span class="header">이전 표시 이름</span>
+                <data-tables v-bind="pastDisplayNameTable" style="margin-top:10px">
+                    <el-table-column label="날짜" prop="updated_at" sortable="custom"><template v-once
+                            #default="scope"><span>{{ scope.row.updated_at | formatDate('YYYY-MM-DD HH24:MI:SS')
+                                }}</span></template></el-table-column>
+                    <el-table-column label="이름" prop="displayName"></el-table-column>
+                </data-tables>
+            </div>
+            <div class="options-container"><span class="header">설정 JSON</span>
+                <el-tooltip placement="top"><template #content><span>새로고침</span></template>
+                    <el-button type="default" @click="refreshConfigTreeData()" size="mini" icon="el-icon-refresh" circle
+                        style="margin-left:5px"></el-button>
+                </el-tooltip>
+                <el-tooltip placement="top"><template #content><span>결과 삭제</span></template>
+                    <el-button type="default" @click="configTreeData = []" size="mini" icon="el-icon-delete" circle
+                        style="margin-left:0"></el-button>
+                </el-tooltip>
+                <el-tree v-if="configTreeData.length &gt; 0" :data="configTreeData"
+                    style="margin-top:10px;font-size:12px"><template #default="scope"><span><span
+                                v-text="scope.data.key" style="font-weight:bold;margin-right:5px"></span><span
+                                v-if="!scope.data.children" v-text="scope.data.value"></span></span></template>
+                </el-tree>
+            </div>
+            <div class="options-container"><span class="header">나의 JSON</span>
+                <el-tooltip placement="top"><template #content><span>새로고침</span></template>
+                    <el-button type="default" @click="refreshCurrentUserTreeData()" size="mini" icon="el-icon-refresh"
+                        circle style="margin-left:5px"></el-button>
+                </el-tooltip>
+                <el-tooltip placement="top"><template #content><span>결과 삭제</span></template>
+                    <el-button type="default" @click="currentUserTreeData = []" size="mini" icon="el-icon-delete" circle
+                        style="margin-left:0"></el-button>
+                </el-tooltip>
+                <el-tree v-if="currentUserTreeData.length &gt; 0" :data="currentUserTreeData"
+                    style="margin-top:10px;font-size:12px"><template #default="scope"><span><span
+                                v-text="scope.data.key" style="font-weight:bold;margin-right:5px"></span><span
+                                v-if="!scope.data.children" v-text="scope.data.value"></span></span></template>
+                </el-tree>
+            </div>
+        </div>
+        <div class="x-container" v-show="$refs.menu &amp;&amp; $refs.menu.activeIndex === 'settings'">
+            <div class="options-container" style="margin-top:0"> <span class="header">설정</span>
+                <div class="x-friend-list" style="margin-top:10px">
+                    <div class="x-friend-item" style="cursor:default">
+                        <div class="detail"><span class="name">버전</span><span class="extra"
+                                v-text="appVersion"></span></div>
+                    </div>
+                    <div class="x-friend-item" @click="checkAppVersion()">
+                        <div class="detail"><span class="name">최신 버전</span><span class="extra"
+                                v-if="latestAppVersion" v-text="latestAppVersion"></span><span class="extra"
+                                v-else>클릭하여 새로고침</span></div>
+                    </div>
+                    <div class="x-friend-item" @click="openExternalLink('https://github.com/pypy-vrc/VRCX')">
+                        <div class="detail"><span class="name">Repository URL</span><span
+                                class="extra">https://github.com/pypy-vrc/VRCX<br>https://github.com/Mintori04/VRCX_KoreanVer</span></div>
+                    </div>
                 </div>
             </div>
             <div class="options-container"><span class="header">외관</span>
@@ -647,11 +776,57 @@
                 <div class="options-container-item"><span class="name">온라인</span>
                     <el-switch v-model="orderFriendsGroup1" inactive-text="이름 순으로" active-text="상태 순으로"></el-switch>
                 </div>
-                <div class="options-container-item"><span class="name">Active</span>
+                <div class="options-container-item"><span class="name">액티브</span>
                     <el-switch v-model="orderFriendsGroup2" inactive-text="이름 순으로" active-text="상태 순으로"></el-switch>
                 </div>
                 <div class="options-container-item"><span class="name">오프라인</span>
                     <el-switch v-model="orderFriendsGroup3" inactive-text="이름 순으로" active-text="상태 순으로"></el-switch>
+                </div>
+                <div class="options-container"><span class="header">신뢰 레벨 색상</span>
+                    <div class="options-container-item">
+                        <div>
+                            <v-swatches class="x-tag-untrusted" v-model="trustColor.untrusted" show-fallback
+                                fallback-input-type="color" popover-x="right" :swatches="trustColorSwatches"><span
+                                    class="color-picker" slot="trigger"><i class="el-icon-s-open"></i> Visitor</span>
+                            </v-swatches>
+                        </div>
+                        <div>
+                            <v-swatches class="x-tag-basic" v-model="trustColor.basic" show-fallback
+                                fallback-input-type="color" popover-x="right" :swatches="trustColorSwatches"><span
+                                    class="color-picker" slot="trigger"><i class="el-icon-s-open"></i> New User</span>
+                            </v-swatches>
+                        </div>
+                        <div>
+                            <v-swatches class="x-tag-known" v-model="trustColor.known" show-fallback
+                                fallback-input-type="color" popover-x="right" :swatches="trustColorSwatches"><span
+                                    class="color-picker" slot="trigger"><i class="el-icon-s-open"></i> User</span>
+                            </v-swatches>
+                        </div>
+                        <div>
+                            <v-swatches class="x-tag-trusted" v-model="trustColor.trusted" show-fallback
+                                fallback-input-type="color" popover-x="right" :swatches="trustColorSwatches"><span
+                                    class="color-picker" slot="trigger"><i class="el-icon-s-open"></i> Known User</span>
+                            </v-swatches>
+                        </div>
+                        <div>
+                            <v-swatches class="x-tag-veteran" v-model="trustColor.veteran" show-fallback
+                                fallback-input-type="color" popover-x="right" :swatches="trustColorSwatches"><span
+                                    class="color-picker" slot="trigger"><i class="el-icon-s-open"></i> Trusted
+                                    User</span></v-swatches>
+                        </div>
+                        <div>
+                            <v-swatches class="x-tag-legend" v-model="trustColor.legend" show-fallback
+                                fallback-input-type="color" popover-x="right" :swatches="trustColorSwatches"><span
+                                    class="color-picker" slot="trigger"><i class="el-icon-s-open"></i> Veteran
+                                    User</span></v-swatches>
+                        </div>
+                        <div>
+                            <v-swatches class="x-tag-legendary" v-model="trustColor.legendary" show-fallback
+                                fallback-input-type="color" popover-x="right" :swatches="trustColorSwatches"><span
+                                    class="color-picker" slot="trigger"><i class="el-icon-s-open"></i> Legendary
+                                    User</span></v-swatches>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="options-container"><span class="header">Discord 상태에 표시</span>
@@ -665,7 +840,7 @@
             </div>
             <div class="options-container"><span class="header">SteamVR 오버레이</span>
                 <div class="options-container-item"><span>* VRChat이 실행 중일 때 자동으로 실행됩니다.</span><br><br><span>Grip: Vive 또는 기타 컨트롤러 그랩 버튼, Oculus X/A
-                    버튼</span><br><span>Menu: Vive Menu, Index B, Oculus Y/B 버튼</span><br></div>
+                        Buttons</span><br><span>Menu: Vive Menu, Index B, Oculus Y/B 버튼</span><br></div>
                 <div class="options-container-item"><span class="name">활성화</span>
                     <el-switch v-model="openVR"></el-switch>
                 </div>
@@ -679,20 +854,19 @@
                 <div class="options-container-item"><span class="name">최소화된 피드 아이콘</span>
                     <el-switch v-model="minimalFeed" :disabled="!openVR"></el-switch>
                 </div>
-                <div class="options-container-item"><span class="name">비공개 월드 숨기기</span>
-                    <el-switch v-model="hidePrivateFromFeed" :disabled="!openVR"></el-switch>
-                </div>
-                <div class="options-container-item"><span class="name">월드 참여시 참여 표시 숨기기</span>
-                    <el-switch v-model="hideOnPlayerJoined" :disabled="!openVR"></el-switch>
-                </div>
                 <div class="options-container-item"><span class="name">VR 기기 숨기기</span>
                     <el-switch v-model="hideDevicesFromFeed" :disabled="!openVR"></el-switch>
+                </div>
+                <div class="options-container-item"><span class="name">비공개 월드 숨기기</span>
+                    <el-switch v-model="hidePrivateFromFeed"></el-switch>
+                </div>
+                <div class="options-container-item"><span class="name">월드 참여시 참여 표시 숨기기</span>
+                    <el-switch v-model="hideOnPlayerJoined"></el-switch>
                 </div>
                 <div class="options-container-item">
                     <el-button size="small" icon="el-icon-notebook-2" @click="showWristFeedFiltersDialog()"
                         :disabled="!openVR">손목 피드 필터</el-button>
-                    <el-button size="small" icon="el-icon-chat-square" @click="showNotyFeedFiltersDialog()"
-                        :disabled="!openVR">알림 필터</el-button>
+                    <el-button size="small" icon="el-icon-chat-square" @click="showNotyFeedFiltersDialog()">알림 필터</el-button>
                 </div><br><span class="sub-header">VR 알림</span>
                 <div class="options-container-item"><span class="name">오버레이 알림</span>
                     <el-switch v-model="overlayNotifications" :disabled="!openVR"></el-switch>
@@ -705,16 +879,15 @@
                 </div><br><span class="sub-header">데스크탑 알림</span>
                 <div class="options-container-item"><span class="name">언제 알림을 표시할까요?</span><br>
                     <toggle-switch class="toggle-switch" :options="desktopToastToggleSwitchOption"
-                        group="desktopToastToggleSwitchOption" v-model="desktopToast" :disabled="!openVR">
-                    </toggle-switch>
+                        group="desktopToastToggleSwitchOption" v-model="desktopToast"></toggle-switch>
                 </div><br><span class="sub-header">TTS 옵션</span>
                 <div class="options-container-item"><span class="name">알림 TTS</span>
-                    <el-switch v-model="notificationTTS" :disabled="!openVR"></el-switch>
+                    <el-switch v-model="notificationTTS"></el-switch>
                 </div>
-                <div class="options-container-item"><span class="name">Text-to-Speech 보이스</span>
+                <div class="options-container-item"><span class="name">Text-to-Speech 음성</span>
                     <el-dropdown @command="(voice) =&gt; changeTTSVoice(voice)" trigger="click" size="small">
                         <el-button v-text="TTSvoices[notificationTTSVoice].name" size="mini"
-                            :disabled="!openVR || !notificationTTS"></el-button>
+                            :disabled="!notificationTTS"></el-button>
                         <el-dropdown-menu #default="dropdown">
                             <el-dropdown-item v-if="voice" v-for="(voice, index) in TTSvoices" :key="index"
                                 v-text="voice.name" :command="index"> </el-dropdown-item>
@@ -735,11 +908,17 @@
                 <div class="options-container-item"><span class="name">자동 로그인</span>
                     <el-switch v-model="isAutoLogin"></el-switch>
                 </div>
+                <div class="options-container-item">
+                    <el-button-group>
+                        <el-button size="small" icon="el-icon-s-operation" @click="showLaunchOptions()">실행 옵션
+                        </el-button>
+                    </el-button-group>
+                </div>
             </div>
             <div class="options-container" style="margin-top:45px;border-top:1px solid #eee;padding-top:30px"><span
                     class="header">법적 공지</span>
                 <div class="options-container-item">
-                    <p>&copy; 2019-2020 <a href="https://github.com/pypy-vrc" target="_blank">pypy</a> (mina#5656)<br>한글화: Mintori(민토리#1207)</p>
+                    <p>&copy; 2019-2021 <a href="https://github.com/pypy-vrc" target="_blank">pypy</a> (mina#5656)<br>한글화: Mintori(민토리#1207)</p>
                     <p>VRCX는 VRChat 친구에 대한 정보를 제공하는 보조 애플리케이션 입니다. 이 애플리케이션은 비공식 VRChat API(VRCSDK)를 사용합니다.</p>
                     <p>VRCX는 VRChat의 승인을 받지 않았으며, VRChat 또는 VRChat의 제작 또는 관리에 공식적으로 참여한 사람의 견해나 의견을 반영하지 않습니다. VRChat은 VRChat Inc.의 상표입니다. VRChat © VRChat Inc.</p>
                     <p>pypy는 VRCX로 인해 발생한 모든 문제에 대해 책임지지 않습니다. 밴 먹어도 내 알빠가 아니라는 뜻 입니다. ㅋ</p>
@@ -777,7 +956,7 @@
                                 v-lazy="API.currentUser.currentAvatarThumbnailImageUrl"></div>
                         <div class="detail"><span class="name" v-text="API.currentUser.displayName"
                                 :class="API.currentUser.$trustClass"></span>
-                            <location class="extra" v-if="isGameRunning === true" :location="lastLocation"
+                            <location class="extra" v-if="isGameRunning === true" :location="lastLocation.location"
                                 :link="false"></location><span class="extra" v-else
                                 v-text="API.currentUser.statusDescription" :link="false"></span>
                         </div>
@@ -827,7 +1006,7 @@
                 </div>
                 <div class="x-friend-group" v-show="friendsGroup2.length"><i class="el-icon-arrow-right"
                         :class="{ rotate: isFriendsGroup2 }"></i><span class="x-link"
-                        @click="isFriendsGroup2 = !isFriendsGroup2" style="margin-left:5px">ACTIVE&horbar;{{
+                        @click="isFriendsGroup2 = !isFriendsGroup2" style="margin-left:5px">액티브&horbar;{{
                         friendsGroup2.length }}</span></div>
                 <div v-show="isFriendsGroup2">
                     <div class="x-friend-item" v-for="friend in friendsGroup2" :key="friend.id"
@@ -871,8 +1050,9 @@
                 <div style="display:flex">
                     <el-popover placement="right" width="500px" trigger="click"><img class="x-link" slot="reference"
                             v-lazy="userDialog.ref.currentAvatarThumbnailImageUrl"
-                            style="flex:none;width:160px;height:120px;border-radius:4px"><img
-                            v-lazy="userDialog.ref.currentAvatarImageUrl" style="width:500px;height:375px"></el-popover>
+                            style="flex:none;width:160px;height:120px;border-radius:4px"><img class="x-link"
+                            v-lazy="userDialog.ref.currentAvatarImageUrl" style="width:500px;height:375px"
+                            @click="openExternalLink(userDialog.ref.currentAvatarImageUrl)"></el-popover>
                     <div style="flex:1;display:flex;align-items:center;margin-left:15px">
                         <div style="flex:1">
                             <div>
@@ -902,6 +1082,12 @@
                                     type="info" effect="plain" size="mini" style="margin-left:5px">{{userDialog.friend.no}}번째 친구</el-tag>
                                 <el-tag class="x-tag-vrcplus" type="info" effect="plain" size="mini"
                                     v-if="userDialog.ref.$isVRCPlus" style="margin-left:5px">VRC+</el-tag>
+                                <el-tag class="x-tag-platform-pc" type="info" effect="plain" size="mini"
+                                    v-if="userDialog.ref.last_platform === 'standalonewindows'" style="margin-left:5px">
+                                    PC</el-tag>
+                                <el-tag class="x-tag-platform-quest" type="info" effect="plain" size="mini"
+                                    v-if="userDialog.ref.last_platform === 'android'" style="margin-left:5px">Quest
+                                </el-tag>
                             </div>
                             <div style="margin-top:5px"><span v-text="userDialog.ref.statusDescription"
                                     style="font-size:12px"></span></div>
@@ -909,8 +1095,9 @@
                         <div v-if="userDialog.ref.userIcon" style="flex:none;margin-right:10px">
                             <el-popover placement="right" width="500px" trigger="click"><img class="x-link"
                                     slot="reference" v-lazy="userDialog.ref.userIcon"
-                                    style="flex:none;width:120px;height:120px;border-radius:4px"><img
-                                    v-lazy="userDialog.ref.userIcon" style="width:500px;height:500px;"></el-popover>
+                                    style="flex:none;width:120px;height:120px;border-radius:4px"><img class="x-link"
+                                    v-lazy="userDialog.ref.userIcon" style="width:500px;height:500px;"
+                                    @click="openExternalLink(userDialog.ref.userIcon)"></el-popover>
                         </div>
                         <div style="flex:none">
                             <el-button v-if="userDialog.isFavorite" @click="userDialogCommand('Delete Favorite')"
@@ -931,11 +1118,15 @@
                                         <el-dropdown-item icon="el-icon-edit" command="Edit Bio">소개</el-dropdown-item>
                                         <el-dropdown-item icon="el-icon-switch-button" command="Logout" divided>로그아웃
                                         </el-dropdown-item>
-                                    </template><template v-else><template v-if="lastLocation &amp;&amp; isGameRunning">
+                                    </template><template v-else><template
+                                            v-if="lastLocation.location &amp;&amp; isGameRunning">
                                             <el-dropdown-item icon="el-icon-message" command="Invite">초대
                                             </el-dropdown-item>
+                                            <el-dropdown-item icon="el-icon-message" command="Invite Message">메시지와 함께 초대</el-dropdown-item>
                                         </template><template v-if="userDialog.isFriend">
                                             <el-dropdown-item icon="el-icon-postcard" command="Request Invite">초대 요청 보내기</el-dropdown-item>
+                                            <el-dropdown-item icon="el-icon-postcard" command="Request Invite Message">
+                                                메시지와 함께 초대 요청</el-dropdown-item>
                                         </template><template v-else-if="userDialog.incomingRequest">
                                             <el-dropdown-item icon="el-icon-check" command="Accept Friend Request">
                                                 친구 요청 수락</el-dropdown-item>
@@ -990,7 +1181,7 @@
                                         <div class="detail"><span class="name"
                                                 v-text="userDialog.$location.user.displayName"
                                                 :class="userDialog.$location.user.$trustClass"></span><span
-                                                class="extra">인스턴스 생성자</span></div>
+                                                class="extra">인스턴스 생성자r</span></div>
                                     </template><span v-else v-text="userDialog.$location.userId"></span></div>
                                 <div class="x-friend-item" v-for="user in userDialog.users" :key="user.id"
                                     @click="showUserDialog(user.id)">
@@ -1077,18 +1268,28 @@
                     <el-tab-pane label="아바타">
                         <el-button type="default" :loading="userDialog.isAvatarsLoading"
                             @click="refreshUserDialogAvatars()" size="mini" icon="el-icon-refresh" circle></el-button>
-                        <span style="margin-left:5px">총 {{ userDialog.avatars.length }} 개</span>
+                        <span style="margin-left:5px">총 {{ userDialogAvatars.length }} 개</span>
                         <el-radio-group v-model="userDialog.avatarSorting" size="mini" style="margin-left:30px"
                             @change="changeUserDialogAvatarSorting">
                             <el-radio label="name">이름 순으로 정렬</el-radio>
                             <el-radio label="update">업데이트 순으로 정렬</el-radio>
                         </el-radio-group>
+                        <el-radio-group v-model="userDialog.avatarReleaseStatus" size="mini" style="margin-left:60px">
+                            <el-radio label="all">모두</el-radio>
+                            <el-radio label="public">공개</el-radio>
+                            <el-radio label="private">비공개</el-radio>
+                        </el-radio-group>
                         <div class="x-friend-list" v-loading="userDialog.isAvatarsLoading"
                             style="margin-top:10px;min-height:60px">
-                            <div class="x-friend-item" v-for="avatar in userDialog.avatars" :key="avatar.id"
+                            <div class="x-friend-item" v-for="avatar in userDialogAvatars" :key="avatar.id"
                                 @click="showAvatarDialog(avatar.id)">
                                 <div class="avatar"><img v-lazy="avatar.thumbnailImageUrl"></div>
-                                <div class="detail"><span class="name" v-text="avatar.name"></span></div>
+                                <div class="detail"><span class="name" v-text="avatar.name"></span><span class="extra"
+                                        v-text="avatar.releaseStatus" v-if="avatar.releaseStatus === 'public'"
+                                        style="color: #67c23a;"></span><span class="extra" v-text="avatar.releaseStatus"
+                                        v-else-if="avatar.releaseStatus === 'private'"
+                                        style="color: #f56c6c;"></span><span class="extra" v-text="avatar.releaseStatus"
+                                        v-else></span></div>
                             </div>
                         </div>
                     </el-tab-pane>
@@ -1110,8 +1311,9 @@
                 <div style="display:flex">
                     <el-popover placement="right" width="500px" trigger="click"><img class="x-link" slot="reference"
                             v-lazy="worldDialog.ref.thumbnailImageUrl"
-                            style="flex:none;width:160px;height:120px;border-radius:4px"><img
-                            v-lazy="worldDialog.ref.imageUrl" style="width:500px;height:375px"></el-popover>
+                            style="flex:none;width:160px;height:120px;border-radius:4px"><img class="x-link"
+                            v-lazy="worldDialog.ref.imageUrl" style="width:500px;height:375px"
+                            @click="openExternalLink(worldDialog.ref.imageUrl)"></el-popover>
                     <div style="flex:1;display:flex;align-items:center;margin-left:15px">
                         <div style="flex:1">
                             <div><i class="el-icon-s-home"
@@ -1265,8 +1467,9 @@
                 <div style="display:flex">
                     <el-popover placement="right" width="500px" trigger="click"><img class="x-link" slot="reference"
                             v-lazy="avatarDialog.ref.thumbnailImageUrl"
-                            style="flex:none;width:160px;height:120px;border-radius:4px"><img
-                            v-lazy="avatarDialog.ref.imageUrl" style="width:500px;height:375px"></el-popover>
+                            style="flex:none;width:160px;height:120px;border-radius:4px"><img class="x-link"
+                            v-lazy="avatarDialog.ref.imageUrl" style="width:500px;height:375px"
+                            @click="openExternalLink(avatarDialog.ref.imageUrl)"></el-popover>
                     <div style="flex:1;display:flex;align-items:center;margin-left:15px">
                         <div style="flex:1">
                             <div><span v-text="avatarDialog.ref.name" style="font-weight:bold"></span></div>
@@ -1299,6 +1502,8 @@
                                             icon="el-icon-user-solid" command="Make Private" divided>비공개로 만들기
                                         </el-dropdown-item>
                                         <el-dropdown-item v-else icon="el-icon-user" command="Make Public" divided>공개로 만들기</el-dropdown-item>
+                                        <el-dropdown-item icon="el-icon-edit" command="Rename">이름 바꾸기</el-dropdown-item>
+                                        <el-dropdown-item icon="el-icon-edit" command="Change Description">설명 바꾸기</el-dropdown-item>
                                     </template>
                                 </el-dropdown-menu>
                             </el-dropdown>
@@ -1306,7 +1511,7 @@
                     </div>
                 </div>
                 <el-tabs>
-                    <el-tab-pane label="정보">
+                    <el-tab-pane label="Info">
                         <div class="x-friend-list">
                             <div class="x-friend-item" style="cursor:default">
                                 <div class="detail"><span class="name">만든 날짜</span><span class="extra">{{
@@ -1387,7 +1592,7 @@
                                         :class="friend.ref.$trustClass"></span></div>
                             </template><span v-else v-text="friend.id"></span></el-option>
                     </el-option-group>
-                    <el-option-group v-if="friendsGroup2.length" label="ACTIVE">
+                    <el-option-group v-if="friendsGroup2.length" label="액티브">
                         <el-option class="x-friend-item" v-for="friend in friendsGroup2" :key="friend.id"
                             :label="friend.name" :value="friend.id" style="height:auto"><template v-if="friend.ref">
                                 <div class="avatar"><img
@@ -1402,18 +1607,20 @@
             </div><template #footer>
                 <el-button type="primary" size="small" :disabled="inviteDialog.loading || !inviteDialog.userIds.length"
                     @click="sendInvite()">초대</el-button>
+                <el-button type="primary" size="small" :disabled="inviteDialog.loading || !inviteDialog.userIds.length"
+                    @click="showSendInviteDialog()">메시지와 함께 초대</el-button>
             </template>
         </el-dialog>
         <el-dialog class="x-dialog" ref="socialStatusDialog" :visible.sync="socialStatusDialog.visible"
-            title="소셜 상태" width="400px">
+            title="Social Status" width="400px">
             <div v-loading="socialStatusDialog.loading">
                 <el-select v-model="socialStatusDialog.status" style="dispaly:block">
-                    <el-option label="온라인" value="active"><i class="x-user-status active"></i> 온라인</el-option>
+                    <el-option label="Online" value="active"><i class="x-user-status active"></i> 온라인</el-option>
                     <el-option label="Join Me" value="join me"><i class="x-user-status joinme"></i> Join Me</el-option>
                     <el-option label="Ask Me" value="ask me"><i class="x-user-status askme"></i> Ask Me</el-option>
-                    <el-option label="방해 금지" value="busy"><i class="x-user-status busy"></i> 방해 금지
+                    <el-option label="Do Not Disturb" value="busy"><i class="x-user-status busy"></i> 방해 금지
                     </el-option>
-                    <el-option label="오프라인" value="offline"><i class="x-user-status offline"></i> 오프라인</el-option>
+                    <el-option label="Offline" value="offline"><i class="x-user-status offline"></i> 오프라인</el-option>
                 </el-select>
                 <el-input v-model="socialStatusDialog.statusDescription" placeholder="Status"
                     style="dispaly:block;margin-top:10px"></el-input>
@@ -1495,7 +1702,7 @@
                         @click.native="$event.target.tagName === 'INPUT' &amp;&amp; $event.target.select()"></el-input>
                 </el-form-item>
             </el-form><template #footer>
-                <el-button size="small" @click="makeHome(newInstanceDialog.location)">홈으로 만들기</el-button>
+                <el-button size="small" @click="makeHome(newInstanceDialog.location)">홈으로 만들기e</el-button>
                 <el-button size="small" @click="showInviteDialog(newInstanceDialog.location)">초대</el-button>
                 <el-button type="primary" size="small" @click="showLaunchDialog(newInstanceDialog.location)">실행
                 </el-button>
@@ -1573,7 +1780,7 @@
             </template>
         </el-dialog>
         <el-dialog class="x-dialog" ref="notyFeedFiltersDialog" :visible.sync="notyFeedFiltersDialog.visible"
-            title="알림 필터" width="400px">
+            title="알림 필터" width="450px">
             <div class="toggle-list">
                 <div><span class="toggle-name">플레이어 참여중</span>
                     <toggle-switch class="toggle-switch" :options="toggleSwitchOptionsFriends"
@@ -1614,6 +1821,16 @@
                     <toggle-switch class="toggle-switch" :options="toggleSwitchOptionsFriends"
                         group="switchNotyGrouprequestInvite" v-model="sharedFeedFilters.noty.requestInvite">
                     </toggle-switch>
+                </div>
+                <div><span class="toggle-name">초대 반응</span>
+                    <toggle-switch class="toggle-switch" :options="toggleSwitchOptionsFriends"
+                        group="switchNotyGroupinviteResponse" v-model="sharedFeedFilters.noty.inviteResponse">
+                    </toggle-switch>
+                </div>
+                <div><span class="toggle-name">초대 요청 반응</span>
+                    <toggle-switch class="toggle-switch" :options="toggleSwitchOptionsFriends"
+                        group="switchNotyGrouprequestInviteResponse"
+                        v-model="sharedFeedFilters.noty.requestInviteResponse"></toggle-switch>
                 </div>
                 <div><span class="toggle-name">친구 추가 요청</span>
                     <toggle-switch class="toggle-switch" :options="toggleSwitchOptionsOn"
@@ -1668,7 +1885,7 @@
             </template>
         </el-dialog>
         <el-dialog class="x-dialog" ref="wristFeedFiltersDialog" :visible.sync="wristFeedFiltersDialog.visible"
-            title="손목 피드 필터" width="400px">
+            title="손목 피드 필터" width="450px">
             <div class="toggle-list">
                 <div><span class="toggle-name">자기 자신의 위치</span>
                     <toggle-switch class="toggle-switch" :options="toggleSwitchOptionsOn"
@@ -1714,6 +1931,16 @@
                         group="switchWristGrouprequestInvite" v-model="sharedFeedFilters.wrist.requestInvite">
                     </toggle-switch>
                 </div>
+                <div><span class="toggle-name">초대 반응</span>
+                    <toggle-switch class="toggle-switch" :options="toggleSwitchOptionsFriends"
+                        group="switchWristGroupinviteResponse" v-model="sharedFeedFilters.wrist.inviteResponse">
+                    </toggle-switch>
+                </div>
+                <div><span class="toggle-name">초대 요청 반응</span>
+                    <toggle-switch class="toggle-switch" :options="toggleSwitchOptionsFriends"
+                        group="switchWristGrouprequestInviteResponse"
+                        v-model="sharedFeedFilters.wrist.requestInviteResponse"></toggle-switch>
+                </div>
                 <div><span class="toggle-name">친구 추가 요청</span>
                     <toggle-switch class="toggle-switch" :options="toggleSwitchOptionsOn"
                         group="switchWristGrouprequestfriendRequest" v-model="sharedFeedFilters.wrist.friendRequest">
@@ -1756,7 +1983,7 @@
                     <toggle-switch class="toggle-switch" :options="toggleSwitchOptionsOn"
                         group="switchWristGrouprequestmute" v-model="sharedFeedFilters.wrist.mute"></toggle-switch>
                 </div>
-                <div><span class="toggle-name">음소거 헤제</span>
+                <div><span class="toggle-name">음소거 해제</span>
                     <toggle-switch class="toggle-switch" :options="toggleSwitchOptionsOn"
                         group="switchWristGrouprequestunmute" v-model="sharedFeedFilters.wrist.unmute"></toggle-switch>
                 </div>
@@ -1765,7 +1992,136 @@
                 <el-button type="primary" size="small" @click="saveSharedFeedFilters">저장</el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" :visible.sync="ossDialog" title="Open Source Software Notice" width="650px">
+        <el-dialog class="x-dialog" ref="editInviteMessageDialog" :visible.sync="editInviteMessageDialog.visible"
+            title="초대 메시지 편집" width="400px">
+            <div style="font-size:12px"><span>1 시간의 변경 쿨타임이 있습니다.</span></div>
+            <el-input type="textarea" v-model="editInviteMessageDialog.newMessage" size="mini" maxlength="64"
+                show-word-limit :autosize="{ minRows:2, maxRows:5 }" placeholder="" style="margin-top:10px"></el-input>
+            <template #footer>
+                <el-button type="small" @click="cancelEditInviteMessage">취소</el-button>
+                <el-button type="primary" size="small" @click="saveEditInviteMessage">저장</el-button>
+            </template>
+        </el-dialog>
+        <el-dialog class="x-dialog" ref="editAndSendInviteResponseDialog"
+            :visible.sync="editAndSendInviteResponseDialog.visible" title="초대 메시지 편집 및 보내기" width="400px">
+            <div style="font-size:12px"><span>1 시간의 변경 쿨타임이 있습니다.</span></div>
+            <el-input type="textarea" v-model="editAndSendInviteResponseDialog.newMessage" size="mini" maxlength="64"
+                show-word-limit :autosize="{ minRows:2, maxRows:5 }" placeholder="" style="margin-top:10px"></el-input>
+            <template #footer>
+                <el-button type="small" @click="cancelEditAndSendInviteResponse">취소</el-button>
+                <el-button type="primary" size="small" @click="saveEditAndSendInviteResponse">보내기</el-button>
+            </template>
+        </el-dialog>
+        <el-dialog class="x-dialog" ref="sendInviteResponseDialog" :visible.sync="sendInviteResponseDialogVisible"
+            title="초대 반응 메시지 보내기" width="800px"><template v-if="API.currentUser.$isVRCPlus"><input
+                    class="inviteImageUploadButton" type="file" multiple accept="image/png"
+                    @change="inviteImageUpload"></template>
+            <data-tables v-bind="inviteResponseMessageTable" @row-click="showSendInviteResponseConfirmDialog"
+                style="margin-top:10px;cursor:pointer">
+                <el-table-column label="Slot" prop="slot" sortable="custom" width="70"></el-table-column>
+                <el-table-column label="메시지" prop="message"></el-table-column>
+                <el-table-column label="Cool Down" prop="updatedAt" sortable="custom" width="110" align="right">
+                    <template v-once #default="scope">
+                        <countdown-timer :datetime="scope.row.updatedAt" :hours="1"></countdown-timer>
+                    </template></el-table-column>
+                <el-table-column label="수정" width="60" align="right"><template v-once #default="scope">
+                        <el-button type="text" icon="el-icon-edit" size="mini"
+                            @click="showEditAndSendInviteResponseDialog('response', scope.row)"></el-button>
+                    </template></el-table-column>
+            </data-tables><template #footer>
+                <el-button type="small" @click="cancelSendInviteResponse">취소</el-button>
+                <el-button type="small" @click="API.refreshInviteMessageTableData('response')">새로고침</el-button>
+            </template>
+        </el-dialog>
+        <el-dialog class="x-dialog" ref="sendInviteRequestResponseDialog"
+            :visible.sync="sendInviteRequestResponseDialogVisible" title="초대 요청 반응 메시지 보내기"
+            width="800px"><template v-if="API.currentUser.$isVRCPlus"><input class="inviteImageUploadButton" type="file"
+                    multiple accept="image/png" @change="inviteImageUpload"></template>
+            <data-tables v-bind="inviteRequestResponseMessageTable" @row-click="showSendInviteResponseConfirmDialog"
+                style="margin-top:10px;cursor:pointer">
+                <el-table-column label="Slot" prop="slot" sortable="custom" width="70"></el-table-column>
+                <el-table-column label="메시지" prop="message"></el-table-column>
+                <el-table-column label="Cool Down" prop="updatedAt" sortable="custom" width="110" align="right">
+                    <template v-once #default="scope">
+                        <countdown-timer :datetime="scope.row.updatedAt" :hours="1"></countdown-timer>
+                    </template></el-table-column>
+                <el-table-column label="수정" width="60" align="right"><template v-once #default="scope">
+                        <el-button type="text" icon="el-icon-edit" size="mini"
+                            @click="showEditAndSendInviteResponseDialog('requestResponse', scope.row)"></el-button>
+                    </template></el-table-column>
+            </data-tables><template #footer>
+                <el-button type="small" @click="cancelSendInviteRequestResponse">취소</el-button>
+                <el-button type="small" @click="API.refreshInviteMessageTableData('requestResponse')">새로고침
+                </el-button>
+            </template>
+        </el-dialog>
+        <el-dialog class="x-dialog" ref="sendInviteResponseConfirmDialog"
+            :visible.sync="sendInviteResponseConfirmDialog.visible" title="초대 반응 메시지 보내기" width="400px">
+            <div style="font-size:12px"><span>정말 메시지를 보낼까요?</span></div><template #footer>
+                <el-button type="small" @click="cancelInviteResponseConfirm">취소</el-button>
+                <el-button type="primary" size="small" @click="sendInviteResponseConfirm">확인</el-button>
+            </template>
+        </el-dialog>
+        <el-dialog class="x-dialog" ref="sendInviteDialog" :visible.sync="sendInviteDialogVisible"
+            title="초대 메시지 보내기" width="800px"><template v-if="API.currentUser.$isVRCPlus"><input
+                    class="inviteImageUploadButton" type="file" multiple accept="image/png"
+                    @change="inviteImageUpload"></template>
+            <data-tables v-bind="inviteMessageTable" @row-click="showSendInviteConfirmDialog"
+                style="margin-top:10px;cursor:pointer">
+                <el-table-column label="Slot" prop="slot" sortable="custom" width="70"></el-table-column>
+                <el-table-column label="메시지" prop="message"></el-table-column>
+                <el-table-column label="Cool Down" prop="updatedAt" sortable="custom" width="110" align="right">
+                    <template v-once #default="scope">
+                        <countdown-timer :datetime="scope.row.updatedAt" :hours="1"></countdown-timer>
+                    </template></el-table-column>
+                <el-table-column label="수정" width="60" align="right"><template v-once #default="scope">
+                        <el-button type="text" icon="el-icon-edit" size="mini"
+                            @click="showEditAndSendInviteDialog('message', scope.row)"></el-button>
+                    </template></el-table-column>
+            </data-tables><template #footer>
+                <el-button type="small" @click="cancelSendInvite">취소</el-button>
+                <el-button type="small" @click="API.refreshInviteMessageTableData('message')">새로고침</el-button>
+            </template>
+        </el-dialog>
+        <el-dialog class="x-dialog" ref="sendInviteRequestDialog" :visible.sync="sendInviteRequestDialogVisible"
+            title="초대 요청 메시지 보내기" width="800px"><template v-if="API.currentUser.$isVRCPlus"><input
+                    class="inviteImageUploadButton" type="file" multiple accept="image/png"
+                    @change="inviteImageUpload"></template>
+            <data-tables v-bind="inviteRequestMessageTable" @row-click="showSendInviteConfirmDialog"
+                style="margin-top:10px;cursor:pointer">
+                <el-table-column label="Slot" prop="slot" sortable="custom" width="70"></el-table-column>
+                <el-table-column label="메시지" prop="message"></el-table-column>
+                <el-table-column label="Cool Down" prop="updatedAt" sortable="custom" width="110" align="right">
+                    <template v-once #default="scope">
+                        <countdown-timer :datetime="scope.row.updatedAt" :hours="1"></countdown-timer>
+                    </template></el-table-column>
+                <el-table-column label="수정" width="60" align="right"><template v-once #default="scope">
+                        <el-button type="text" icon="el-icon-edit" size="mini"
+                            @click="showEditAndSendInviteDialog('request', scope.row)"></el-button>
+                    </template></el-table-column>
+            </data-tables><template #footer>
+                <el-button type="small" @click="cancelSendInviteRequest">취소</el-button>
+                <el-button type="small" @click="API.refreshInviteMessageTableData('request')">새로고침</el-button>
+            </template>
+        </el-dialog>
+        <el-dialog class="x-dialog" ref="sendInviteConfirmDialog" :visible.sync="sendInviteConfirmDialog.visible"
+            title="초대 메시지 보내기" width="400px">
+            <div style="font-size:12px"><span>정말 메시지를 보낼까요?</span></div><template #footer>
+                <el-button type="small" @click="cancelInviteConfirm">취소</el-button>
+                <el-button type="primary" size="small" @click="sendInviteConfirm">확인</el-button>
+            </template>
+        </el-dialog>
+        <el-dialog class="x-dialog" ref="editAndSendInviteDialog" :visible.sync="editAndSendInviteDialog.visible"
+            title="초대 메시지 수정 및 보내기" width="400px">
+            <div style="font-size:12px"><span>1 시간의 변경 쿨타임이 있습니다. </span></div>
+            <el-input type="textarea" v-model="editAndSendInviteDialog.newMessage" size="mini" maxlength="64"
+                show-word-limit :autosize="{ minRows:2, maxRows:5 }" placeholder="" style="margin-top:10px"></el-input>
+            <template #footer>
+                <el-button type="small" @click="cancelEditAndSendInvite">취소</el-button>
+                <el-button type="primary" size="small" @click="saveEditAndSendInvite">보내기</el-button>
+            </template>
+        </el-dialog>
+        <el-dialog class="x-dialog" :visible.sync="ossDialog" title="오픈 소스 소프트웨어 공지" width="650px">
             <div style="height:350px;overflow:hidden scroll;word-break:break-all">
                 <div><span>VRCX는 오픈소스 소프트웨어를 기반으로 합니다.</span>
                 </div>
@@ -2028,6 +2384,30 @@ SOFTWARE.</pre>
                     <pre style="font-size:12px;white-space:pre-line">The MIT License (MIT)
 
 Copyright (c) 2016 Awe
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</pre>
+                </div>
+                <div style="margin-top:15px">
+                    <p style="font-weight:bold">vue-swatches</p>
+                    <pre style="font-size:12px;white-space:pre-line">MIT License
+
+Copyright (c) 2018 - Present Diego Jara
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
