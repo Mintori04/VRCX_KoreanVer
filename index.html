@@ -840,7 +840,7 @@
             </div>
             <div class="options-container"><span class="header">SteamVR 오버레이</span>
                 <div class="options-container-item"><span>* VRChat이 실행 중일 때 자동으로 실행됩니다.</span><br><br><span>Grip: Vive 또는 기타 컨트롤러 그랩 버튼, Oculus X/A
-                        Buttons</span><br><span>Menu: Vive Menu, Index B, Oculus Y/B 버튼</span><br></div>
+                        버튼</span><br><span>Menu: Vive Menu, Index B, Oculus Y/B 버튼</span><br></div>
                 <div class="options-container-item"><span class="name">활성화</span>
                     <el-switch v-model="openVR"></el-switch>
                 </div>
@@ -1181,7 +1181,7 @@
                                         <div class="detail"><span class="name"
                                                 v-text="userDialog.$location.user.displayName"
                                                 :class="userDialog.$location.user.$trustClass"></span><span
-                                                class="extra">인스턴스 생성자r</span></div>
+                                                class="extra">인스턴스 생성자</span></div>
                                     </template><span v-else v-text="userDialog.$location.userId"></span></div>
                                 <div class="x-friend-item" v-for="user in userDialog.users" :key="user.id"
                                     @click="showUserDialog(user.id)">
@@ -1511,7 +1511,7 @@
                     </div>
                 </div>
                 <el-tabs>
-                    <el-tab-pane label="Info">
+                    <el-tab-pane label="정보">
                         <div class="x-friend-list">
                             <div class="x-friend-item" style="cursor:default">
                                 <div class="detail"><span class="name">만든 날짜</span><span class="extra">{{
@@ -1612,7 +1612,7 @@
             </template>
         </el-dialog>
         <el-dialog class="x-dialog" ref="socialStatusDialog" :visible.sync="socialStatusDialog.visible"
-            title="Social Status" width="400px">
+            title="소셜 상태" width="400px">
             <div v-loading="socialStatusDialog.loading">
                 <el-select v-model="socialStatusDialog.status" style="dispaly:block">
                     <el-option label="Online" value="active"><i class="x-user-status active"></i> 온라인</el-option>
@@ -1702,7 +1702,7 @@
                         @click.native="$event.target.tagName === 'INPUT' &amp;&amp; $event.target.select()"></el-input>
                 </el-form-item>
             </el-form><template #footer>
-                <el-button size="small" @click="makeHome(newInstanceDialog.location)">홈으로 만들기e</el-button>
+                <el-button size="small" @click="makeHome(newInstanceDialog.location)">홈으로 만들기</el-button>
                 <el-button size="small" @click="showInviteDialog(newInstanceDialog.location)">초대</el-button>
                 <el-button type="primary" size="small" @click="showLaunchDialog(newInstanceDialog.location)">실행
                 </el-button>
