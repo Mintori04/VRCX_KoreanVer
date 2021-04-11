@@ -3304,7 +3304,7 @@
     n.d(t, "a", (function() {
         return i
     }));
-    var i = "VRCX 2021.04.04.1 KRVer1"
+    var i = "VRCX 2021.04.04.1 KRVer2"
 }, function(e, t, n) {
     "use strict";
     var i;
@@ -37583,7 +37583,7 @@
     function x() {
         return {
             default: "Validation error on field %s",
-            required: "%s is required",
+            required: "%s 이(가) 필요합니다.",
             enum: "%s must be one of %s",
             whitespace: "%s cannot be empty",
             date: {
@@ -44253,11 +44253,11 @@
                                         worldName: n.ref.name
                                     }, y.currentUser.id).finally((function() {
                                         e.$message({
-                                            message: "Invite sent to yourself",
+                                            message: "스스로에게 초대가 전송되었습니다.",
                                             type: "success"
                                         })
                                     })) : e.$message({
-                                        message: "You can't invite yourself in 'Do Not Disturb' mode",
+                                        message: "'방해 금지' 모드에서는 스스로에게 초대를 보낼 수 없습니다.",
                                         type: "error"
                                     })
                                 }))
