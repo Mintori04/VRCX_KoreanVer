@@ -25,7 +25,8 @@
                             <div class="x-friend-item" @click="relogin(user)" style="width:202px;padding:0">
                                 <div class="avatar"><img v-lazy="userImage(user.user)"></div>
                                 <div class="detail"><span class="name" v-text="user.user.displayName"></span><span
-                                        class="extra" v-text="user.user.username"></span></div>
+                                        class="extra" v-text="user.user.username"></span><span class="extra"
+                                        v-text="user.loginParmas.endpoint"></span></div>
                             </div>
                             <el-button type="default" @click="deleteSavedLogin(user.user.username)" size="mini"
                                 icon="el-icon-delete" circle></el-button>
@@ -40,9 +41,14 @@
                             <el-input v-model="loginForm.username" name="username" placeholder="닉네임 또는 이메일 주소"
                                 clearable></el-input>
                         </el-form-item>
-                        <el-form-item label="비밀번호" prop="password" required style="margin-top:5px">
+                        <el-form-item label="비밀번호" prop="password" required style="margin-top:10px">
                             <el-input type="password" v-model="loginForm.password" name="password"
                                 placeholder="비밀번호" clearable show-password></el-input>
+                        </el-form-item>
+                        <el-form-item v-if="enableCustomEndpoint" label="Endpont" prop="endpoint"
+                            style="margin-top:10px">
+                            <el-input v-model="loginForm.endpoint" name="endpoint" placeholder="Endpoint URL" clearable>
+                            </el-input>
                         </el-form-item>
                         <el-checkbox v-model="loginForm.saveCredentials" style="margin-top:15px">계정 기억하기
                         </el-checkbox>
@@ -98,22 +104,27 @@
                             style="flex:none;width:160px;height:120px;border-radius:4px"><img class="x-link"
                             v-lazy="currentInstanceWorld.imageUrl" style="width:500px;height:375px"
                             @click="openExternalLink(currentInstanceWorld.imageUrl)"></el-popover>
-                    <div style="margin-left:10px;display:flex;flex-direction:column">
+                    <div style="margin-left:10px;display:flex;flex-direction:column;min-width:320px;width:100%">
                         <div><span class="x-link" @click="showWorldDialog(currentInstanceWorld.id)"
                                 style="font-weight:bold;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1"><i
                                     class="el-icon-s-home"
-                                    v-show="API.currentUser.$homeLocation &amp;&amp; API.currentUser.$homeLocation.worldId === currentInstanceWorld.id"></i>
-                                {{ currentInstanceWorld.name }}</span></div>
+                                    v-show="API.currentUser.$homeLocation &amp;&amp; API.currentUser.$homeLocation.worldId === currentInstanceWorld.id"
+                                    style="margin-right:5px"></i> {{ currentInstanceWorld.name }}</span></div>
                         <div><span class="x-link" v-text="currentInstanceWorld.authorName"
                                 @click="showUserDialog(currentInstanceWorld.authorId)"
                                 style="color:#909399;font-family:monospace"></span></div>
                         <div style="margin-top:5px">
-                            <el-tag v-if="currentInstanceWorld.$isLabs" type="primary" effect="plain" size="mini">커뮤니티 실험실
-                            </el-tag>
+                            <el-tag v-if="currentInstanceWorld.$isLabs" type="primary" effect="plain" size="mini"
+                                style="margin-right:5px">커뮤니티 실험실</el-tag>
                             <el-tag v-else-if="currentInstanceWorld.releaseStatus === 'public'" type="success"
-                                effect="plain" size="mini">공개</el-tag>
+                                effect="plain" size="mini" style="margin-right:5px">공개</el-tag>
                             <el-tag v-else-if="currentInstanceWorld.releaseStatus === 'private'" type="danger"
-                                effect="plain" size="mini">Private</el-tag><span style="margin-left:5px"><span>#{{
+                                effect="plain" size="mini" style="margin-right:5px">비공개</el-tag>
+                            <el-tag class="x-tag-platform-pc" v-if="currentInstanceWorld.$isPC" type="info"
+                                effect="plain" size="mini" style="margin-right:5px">PC</el-tag>
+                            <el-tag class="x-tag-platform-quest" v-if="currentInstanceWorld.$isQuest" type="info"
+                                effect="plain" size="mini" style="margin-right:5px">Quest</el-tag><span class="x-link"
+                                @click="showLaunchDialog(lastLocation.location)"><span>#{{
                                     currentInstanceLocation.instanceName }} {{ currentInstanceLocation.accessType
                                     }}</span><span class="famfamfam-flags europeanunion"
                                     v-if="currentInstanceLocation.region === 'eu'"
@@ -122,7 +133,9 @@
                                     style="display:inline-block;margin-left:5px"></span><span class="flag-icon-use"
                                     v-else-if="currentInstanceLocation.region === 'use'"
                                     style="display:inline-block;margin-left:5px"></span><span class="flag-icon-usw"
-                                    v-else style="display:inline-block;margin-left:5px"></span></span><span
+                                    v-else style="display:inline-block;margin-left:5px"></span><i class="el-icon-lock"
+                                    v-if="currentInstanceLocation.strict"
+                                    style="display:inline-block;margin-left:5px"></i></span><span
                                 v-if="lastLocation.playerList.size &gt; 0" style="margin-left:5px">{{
                                 lastLocation.playerList.size }}
                                 <template v-if="lastLocation.friendList.size &gt; 0">({{ lastLocation.friendList.size
@@ -133,12 +146,28 @@
                                                     @click="showUserFromPhotonId(id)" style="margin-right:5px"></span>
                                             </div>
                                         </template><span v-text="photonLobbyBots.length" style="color:red"></span>
-                                    </el-tooltip></template></span>
+                                    </el-tooltip></template></span>&nbsp;<timer v-if="lastLocation.date"
+                                :epoch="lastLocation.date"></timer>
                         </div>
                         <div style="margin-top:5px"><span
                                 v-show="currentInstanceWorld.name !== currentInstanceWorld.description"
                                 v-text="currentInstanceWorld.description"
                                 style="font-size:12px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2"></span>
+                        </div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;margin-left:20px">
+                        <div class="x-friend-item" style="cursor:default">
+                            <div class="detail"><span class="name">최대 인원수</span><span class="extra">{{
+                                    currentInstanceWorld.capacity | commaNumber }} ({{ currentInstanceWorld.capacity * 2
+                                    | commaNumber }})</span></div>
+                        </div>
+                        <div class="x-friend-item" style="cursor:default">
+                            <div class="detail"><span class="name">마지막 업데이트일</span><span class="extra">{{
+                                    currentInstanceWorld.updated_at | formatDate('long') }}</span></div>
+                        </div>
+                        <div class="x-friend-item" style="cursor:default">
+                            <div class="detail"><span class="name">생성일</span><span class="extra">{{
+                                    currentInstanceWorld.created_at | formatDate('long') }}</span></div>
                         </div>
                     </div>
                 </div>
@@ -160,11 +189,11 @@
                         <el-table-column label="Photon Id" width="100" prop="photonId" sortable><template v-once
                                 #default="scope"><span v-text="scope.row.photonId"></span></template></el-table-column>
                         <el-table-column label="아이콘" prop="isMaster" width="100"><template v-once #default="scope">
-                                <el-tooltip v-if="scope.row.isMaster" placement="left" content="Instance Master">
+                                <el-tooltip v-if="scope.row.isMaster" placement="left" content="인스턴스 생성자">
                                     <span>👑</span></el-tooltip>
-                                <el-tooltip v-if="scope.row.isFriend" placement="left" content="Friend"><span>💚</span>
+                                <el-tooltip v-if="scope.row.isFriend" placement="left" content="친구"><span>💚</span>
                                 </el-tooltip>
-                                <el-tooltip v-if="scope.row.timeoutTime" placement="left" content="Timeout"><span
+                                <el-tooltip v-if="scope.row.timeoutTime" placement="left" content="타임아웃"><span
                                         style="color:red">🔴{{ scope.row.timeoutTime }}s</span></el-tooltip>
                             </template></el-table-column>
                         <el-table-column label="플랫폼" prop="inVrMode" width="70"><template v-once
@@ -201,30 +230,97 @@
                             </template></el-table-column>
                     </data-tables>
                 </div>
-                <div class="photon-event-table" v-if="photonEventTable.data.length &gt; 0">
-                    <data-tables v-bind="photonEventTable" style="margin-bottom:10px">
-                        <el-table-column label="날짜" prop="created_at" width="90"><template v-once #default="scope">
-                                <el-tooltip placement="right"><template #content><span>{{ scope.row.created_at |
-                                            formatDate('YYYY-MM-DD HH24:MI:SS') }}</span></template><span>{{
-                                        scope.row.created_at | formatDate('MM-DD HH24:MI') }}</span></el-tooltip>
-                            </template></el-table-column>
-                        <el-table-column label="이름" prop="photonId" width="160"><template v-once
-                                #default="scope"><span class="x-link"
-                                    v-text="getDisplayNameFromPhotonId(scope.row.photonId)"
-                                    @click="showUserFromPhotonId(scope.row.photonId)"
-                                    style="padding-right:10px"></span></template></el-table-column>
-                        <el-table-column label="이밴트" prop="text"><template v-once #default="scope"><span
-                                    v-if="scope.row.avatar"><span>ChangeAvatar </span><span class="x-link"
-                                        v-text="scope.row.avatar.name"
-                                        @click="showAvatarDialog(scope.row.avatar.id)"></span>&nbsp;<span
-                                        class="avatar-info-public"
-                                        v-if="scope.row.avatar.releaseStatus === 'public'">(Public)</span><span
-                                        class="avatar-info-own"
-                                        v-else-if="scope.row.avatar.releaseStatus === 'private'">(Private)</span><template
-                                        v-if="scope.row.avatar.description &amp;&amp; scope.row.avatar.name !== scope.row.avatar.description">
-                                        - {{ scope.row.avatar.description }}</template></span><span v-else
-                                    v-text="scope.row.text"></span></template></el-table-column>
-                    </data-tables>
+                <div class="photon-event-table" v-if="photonLoggingEnabled">
+                    <div style="position:absolute;margin-left:195px;z-index:1">
+                        <el-input v-model="photonEventTableFilter" @input="photonEventTableFilterChange"
+                            placeholder="검색" clearable style="width:150px"></el-input>
+                        <el-tooltip placement="bottom" content="VRCX Companion 상태" :disabled="hideTooltips">
+                            <div
+                                style="display:inline-block;margin-left:15px;font-size:14px;vertical-align:text-top;margin-top:1px">
+                                <span v-if="ipcEnabled &amp;&amp; !photonEventIcon">🟢</span><span
+                                    v-else-if="ipcEnabled">⚪</span><span v-else>🔴</span></div>
+                        </el-tooltip>
+                    </div>
+                    <el-tabs type="card">
+                        <el-tab-pane label="Current">
+                            <data-tables v-bind="photonEventTable" style="margin-bottom:10px">
+                                <el-table-column label="날짜" prop="created_at" width="110"><template v-once
+                                        #default="scope">
+                                        <el-tooltip placement="right"><template #content><span>{{ scope.row.created_at |
+                                                    formatDate('long') }}</span></template><span>{{ scope.row.created_at
+                                                | formatDate('short') }}</span></el-tooltip>
+                                    </template></el-table-column>
+                                <el-table-column label="이름" prop="photonId" width="160"><template v-once
+                                        #default="scope"><span class="x-link" v-text="scope.row.displayName"
+                                            @click="showUserFromPhotonId(scope.row.photonId)"
+                                            style="padding-right:10px"></span></template></el-table-column>
+                                <el-table-column label="이밴트" prop="text"><template v-once #default="scope"><span
+                                            v-if="scope.row.type === 'AvatarChange'"><span>아바타 변경 </span><span
+                                                class="x-link" v-text="scope.row.avatar.name"
+                                                @click="showAvatarDialog(scope.row.avatar.id)"></span>&nbsp;<span
+                                                class="avatar-info-public"
+                                                v-if="scope.row.avatar.releaseStatus === 'public'">(Public)</span><span
+                                                class="avatar-info-own"
+                                                v-else-if="scope.row.avatar.releaseStatus === 'private'">(Private)</span><template
+                                                v-if="scope.row.avatar.description &amp;&amp; scope.row.avatar.name !== scope.row.avatar.description">
+                                                - {{ scope.row.avatar.description }}</template></span><template
+                                            v-else-if="scope.row.type === 'ChangeStatus'"><span>상태 변경</span><template
+                                                v-if="scope.row.status !== scope.row.previousStatus">
+                                                <el-tooltip placement="top"><template #content><span
+                                                            v-if="scope.row.previousStatus === 'active'">액티브</span><span
+                                                            v-else-if="scope.row.previousStatus === 'join me'">Join
+                                                            Me</span><span
+                                                            v-else-if="scope.row.previousStatus === 'ask me'">Ask
+                                                            Me</span><span
+                                                            v-else-if="scope.row.previousStatus === 'busy'">방해 금지</span>
+                                                            <span v-else>오프라인</span></template><i
+                                                        class="x-user-status"
+                                                        :class="statusClass(scope.row.previousStatus)"
+                                                        style="margin-left:10px"></i></el-tooltip><span><i
+                                                        class="el-icon-right"></i></span>
+                                                <el-tooltip placement="top"><template #content><span
+                                                            v-if="scope.row.status === 'active'">액티브</span><span
+                                                            v-else-if="scope.row.status === 'join me'">Join
+                                                            Me</span><span v-else-if="scope.row.status === 'ask me'">Ask
+                                                            Me</span><span v-else-if="scope.row.status === 'busy'">방해 금지</span>
+                                                            <span v-else>오프라인</span></template><i
+                                                        class="x-user-status"
+                                                        :class="statusClass(scope.row.status)"></i></el-tooltip>
+                                            </template><span
+                                                v-if="scope.row.statusDescription !== scope.row.previousStatusDescription"
+                                                v-text="scope.row.statusDescription"
+                                                style="margin-left:10px"></span></template><span
+                                            v-else-if="scope.row.color === 'yellow'" v-text="scope.row.text"
+                                            style="color:yellow"></span><span v-else
+                                            v-text="scope.row.text"></span></template></el-table-column>
+                            </data-tables>
+                        </el-tab-pane>
+                        <el-tab-pane label="Previous">
+                            <data-tables v-bind="photonEventTablePrevious" style="margin-bottom:10px">
+                                <el-table-column label="날짜" prop="created_at" width="110"><template v-once
+                                        #default="scope">
+                                        <el-tooltip placement="right"><template #content><span>{{ scope.row.created_at |
+                                                    formatDate('long') }}</span></template><span>{{ scope.row.created_at
+                                                | formatDate('short') }}</span></el-tooltip>
+                                    </template></el-table-column>
+                                <el-table-column label="이름" prop="photonId" width="160"><template v-once
+                                        #default="scope"><span class="x-link" v-text="scope.row.displayName"
+                                            @click="lookupUser(scope.row)" style="padding-right:10px"></span></template>
+                                </el-table-column>
+                                <el-table-column label="이밴트" prop="text"><template v-once #default="scope"><span
+                                            v-if="scope.row.avatar"><span>아바타 변경 </span><span class="x-link"
+                                                v-text="scope.row.avatar.name"
+                                                @click="showAvatarDialog(scope.row.avatar.id)"></span>&nbsp;<span
+                                                class="avatar-info-public"
+                                                v-if="scope.row.avatar.releaseStatus === 'public'">(Public)</span><span
+                                                class="avatar-info-own"
+                                                v-else-if="scope.row.avatar.releaseStatus === 'private'">(Private)</span><template
+                                                v-if="scope.row.avatar.description &amp;&amp; scope.row.avatar.name !== scope.row.avatar.description">
+                                                - {{ scope.row.avatar.description }}</template></span><span v-else
+                                            v-text="scope.row.text"></span></template></el-table-column>
+                            </data-tables>
+                        </el-tab-pane>
+                    </el-tabs>
                 </div>
             </div>
         </div>
@@ -268,14 +364,14 @@
                                         style="flex:none;width:160px;height:120px;border-radius:4px"><img class="x-link"
                                         v-lazy="scope.row.previousCurrentAvatarImageUrl"
                                         style="width:500px;height:375px"
-                                        @click="showAvatarAuthorDialog(scope.row.userId, scope.row.previousCurrentAvatarImageUrl)">
+                                        @click="showAvatarAuthorDialog(scope.row.userId, '', scope.row.previousCurrentAvatarImageUrl)">
                                 </el-popover><span style="position:relative;top:-50px;margin:0 5px"><i
                                         class="el-icon-right"></i></span>
                                 <el-popover placement="right" width="500px" trigger="click"><img class="x-link"
                                         slot="reference" v-lazy="scope.row.currentAvatarThumbnailImageUrl"
                                         style="flex:none;width:160px;height:120px;border-radius:4px"><img class="x-link"
                                         v-lazy="scope.row.currentAvatarImageUrl" style="width:500px;height:375px"
-                                        @click="showAvatarAuthorDialog(scope.row.userId, scope.row.currentAvatarImageUrl)">
+                                        @click="showAvatarAuthorDialog(scope.row.userId, '', scope.row.currentAvatarImageUrl)">
                                 </el-popover>
                             </template><template v-else-if="scope.row.type === 'Status'">
                                 <el-tooltip placement="top"><template #content><span
@@ -297,11 +393,11 @@
                                     v-text="scope.row.statusDescription"></span>
                             </template></div>
                     </template></el-table-column>
-                <el-table-column label="날짜" prop="created_at" sortable="custom" width="90"><template v-once
+                <el-table-column label="날짜" prop="created_at" sortable="custom" width="110"><template v-once
                         #default="scope">
                         <el-tooltip placement="right"><template #content><span>{{ scope.row.created_at |
-                                    formatDate('YYYY-MM-DD HH24:MI:SS') }}</span></template><span>{{
-                                scope.row.created_at | formatDate('MM-DD HH24:MI') }}</span></el-tooltip>
+                                    formatDate('long') }}</span></template><span>{{ scope.row.created_at |
+                                formatDate('short') }}</span></el-tooltip>
                     </template></el-table-column>
                 <el-table-column label="종류" prop="type" width="70"></el-table-column>
                 <el-table-column label="유저" prop="displayName" width="180"><template v-once #default="scope"><span
@@ -360,11 +456,11 @@
                             style="flex:none;width:150px;margin:0 10px"></el-input>
                     </div>
                 </template>
-                <el-table-column label="날짜" prop="created_at" sortable="custom" width="90"><template v-once
+                <el-table-column label="날짜" prop="created_at" sortable="custom" width="110"><template v-once
                         #default="scope">
                         <el-tooltip placement="right"><template #content><span>{{ scope.row.created_at |
-                                    formatDate('YYYY-MM-DD HH24:MI:SS') }}</span></template><span>{{
-                                scope.row.created_at | formatDate('MM-DD HH24:MI') }}</span></el-tooltip>
+                                    formatDate('long') }}</span></template><span>{{ scope.row.created_at |
+                                formatDate('short') }}</span></el-tooltip>
                     </template></el-table-column>
                 <el-table-column label="종류" prop="type" width="120"><template v-once #default="scope"><span
                             class="x-link" v-if="scope.row.location &amp;&amp; scope.row.type !== 'Location'"
@@ -429,6 +525,8 @@
                         </el-dropdown-menu>
                     </el-dropdown>
                     <el-checkbox v-model="searchWorldLabs" style="margin-left:10px">커뮤니티 실험실 포함</el-checkbox>
+                    <el-button v-if="searchWorldResults.length &gt; 0" @click="downloadSearchPage"
+                        icon="el-icon-download" size="small" style="margin-left:10px">모두 다운로드</el-button>
                     <div class="x-friend-list">
                         <div class="x-friend-item" v-for="world in searchWorldResults" :key="world.id"
                             @click="showWorldDialog(world.id)"><template v-once>
@@ -441,32 +539,39 @@
                     <el-button-group style="margin-top:15px">
                         <el-button v-if="searchWorldParams.offset" @click="moreSearchWorld(-1)" icon="el-icon-back"
                             size="small">이전</el-button>
-                        <el-button v-if="searchWorldResults.length" @click="moreSearchWorld(1)" icon="el-icon-right"
-                            size="small">다음</el-button>
+                        <el-button v-if="searchWorldResults.length &gt;= 10" @click="moreSearchWorld(1)"
+                            icon="el-icon-right" size="small">다음</el-button>
                     </el-button-group>
                 </el-tab-pane>
-                <el-tab-pane label="아바타" style="min-height:60px">
-                    <el-tooltip placement="bottom" content="Refresh own avatars" :disabled="hideTooltips">
+                <el-tab-pane label="아바타" v-loading="isSearchAvatarLoading" style="min-height:60px">
+                    <el-tooltip placement="bottom" content="나의 아바타 새로고침" :disabled="hideTooltips">
                         <el-button type="default" :loading="userDialog.isAvatarsLoading"
                             @click="refreshUserDialogAvatars()" size="mini" icon="el-icon-refresh" circle></el-button>
                     </el-tooltip><span style="font-size:14px;margin-left:5px">Results {{ searchAvatarResults.length
                         }}</span>
-                    <el-radio-group v-model="searchAvatarSort" size="mini" style="margin-left:30px"
+                    <el-radio-group v-model="searchAvatarSort" size="mini" style="margin:5px;display:block"
                         @change="searchAvatar">
                         <el-radio label="name">이름순</el-radio>
                         <el-radio label="update">최근 업데이트순</el-radio>
-                        <el-radio label="created">최신순</el-radio>
+                        <el-radio label="created">생성순</el-radio>
                     </el-radio-group>
-                    <el-radio-group v-model="searchAvatarFilter" size="mini" style="margin-left:80px"
+                    <el-radio-group v-model="searchAvatarFilter" size="mini" style="margin:5px;display:block"
                         @change="searchAvatar">
-                        <el-radio label="all">전체</el-radio>
+                        <el-radio label="all">모두</el-radio>
                         <el-radio label="public">공개</el-radio>
                         <el-radio label="private">비공개</el-radio>
                     </el-radio-group>
+                    <el-radio-group v-model="searchAvatarFilterRemote" size="mini" style="margin:5px;display:block"
+                        @change="searchAvatar">
+                        <el-radio label="all">모두</el-radio>
+                        <el-radio label="local">로컬</el-radio>
+                        <el-radio label="remote" :disabled="!avatarRemoteDatabase">원격</el-radio>
+                    </el-radio-group>
                     <div class="x-friend-list" style="margin-top:20px">
-                        <div class="x-friend-item" v-for="avatar in searchAvatarResults" :key="avatar.id"
+                        <div class="x-friend-item" v-for="avatar in searchAvatarPage" :key="avatar.id"
                             @click="showAvatarDialog(avatar.id)"><template v-once>
-                                <div class="avatar"><img v-lazy="avatar.thumbnailImageUrl"></div>
+                                <div class="avatar"><img v-if="avatar.thumbnailImageUrl"
+                                        v-lazy="avatar.thumbnailImageUrl"></div>
                                 <div class="detail"><span class="name" v-text="avatar.name"></span><span class="extra"
                                         v-text="avatar.releaseStatus" v-if="avatar.releaseStatus === 'public'"
                                         style="color: #67c23a;"></span><span class="extra" v-text="avatar.releaseStatus"
@@ -475,6 +580,13 @@
                                         v-else></span><span class="extra" v-text="avatar.authorName"></span></div>
                             </template></div>
                     </div>
+                    <el-button-group style="margin-top:15px">
+                        <el-button v-if="searchAvatarPageNum" @click="moreSearchAvatar(-1)" icon="el-icon-back"
+                            size="small">이전</el-button>
+                        <el-button
+                            v-if="searchAvatarResults.length &gt; 10 &amp;&amp; (searchAvatarPageNum + 1) * 10 &lt; searchAvatarResults.length"
+                            @click="moreSearchAvatar(1)" icon="el-icon-right" size="small">다음</el-button>
+                    </el-button-group>
                 </el-tab-pane>
             </el-tabs>
         </div>
@@ -514,7 +626,7 @@
                                                     :location="favorite.ref.location" :link="false"></location><span
                                                     v-else v-text="favorite.ref.statusDescription"></span>
                                             </div>
-                                            <el-tooltip placement="left" content="Move" :disabled="hideTooltips">
+                                            <el-tooltip placement="left" content="이동" :disabled="hideTooltips">
                                                 <el-dropdown trigger="click" @click.native.stop size="mini"
                                                     style="margin-left:5px">
                                                     <el-button type="default" icon="el-icon-back" size="mini" circle>
@@ -531,7 +643,7 @@
                                                         </template></el-dropdown-menu>
                                                 </el-dropdown>
                                             </el-tooltip>
-                                            <el-tooltip placement="right" content="Unfavorite" :disabled="hideTooltips">
+                                            <el-tooltip placement="right" content="즐겨찾기에서 삭제" :disabled="hideTooltips">
                                                 <el-button @click.stop="deleteFavorite(favorite.id)" size="mini"
                                                     icon="el-icon-delete" circle style="margin-left:5px"></el-button>
                                             </el-tooltip>
@@ -674,7 +786,8 @@
                 </el-tab-pane>
             </el-tabs>
         </div>
-        <div class="x-container" v-show="$refs.menu &amp;&amp; $refs.menu.activeIndex === 'friendLog'">
+        <div class="x-container" v-show="$refs.menu &amp;&amp; $refs.menu.activeIndex === 'friendLog'"
+            v-if="$refs.menu &amp;&amp; $refs.menu.activeIndex === 'friendLog'">
             <data-tables v-bind="friendLogTable"><template #tool>
                     <div style="margin:0 0 10px;display:flex;align-items:center">
                         <el-select v-model="friendLogTable.filters[0].value" @change="saveTableFilters" multiple
@@ -687,11 +800,11 @@
                             style="flex:none;width:150px;margin-left:10px"></el-input>
                     </div>
                 </template>
-                <el-table-column label="날짜" prop="created_at" sortable="custom" width="100"><template v-once
+                <el-table-column label="날짜" prop="created_at" sortable="custom" width="110"><template v-once
                         #default="scope">
                         <el-tooltip placement="right"><template #content><span>{{ scope.row.created_at |
-                                    formatDate('YYYY-MM-DD HH24:MI:SS') }}</span></template><span>{{
-                                scope.row.created_at | formatDate('MM-DD HH24:MI') }}</span></el-tooltip>
+                                    formatDate('long') }}</span></template><span>{{ scope.row.created_at |
+                                formatDate('short') }}</span></el-tooltip>
                     </template></el-table-column>
                 <el-table-column label="종류" prop="type" width="150"></el-table-column>
                 <el-table-column label="유저" prop="displayName"><template v-once #default="scope"><span
@@ -708,7 +821,8 @@
                     </template></el-table-column>
             </data-tables>
         </div>
-        <div class="x-container" v-show="$refs.menu &amp;&amp; $refs.menu.activeIndex === 'moderation'">
+        <div class="x-container" v-show="$refs.menu &amp;&amp; $refs.menu.activeIndex === 'moderation'"
+            v-if="$refs.menu &amp;&amp; $refs.menu.activeIndex === 'moderation'">
             <data-tables v-bind="playerModerationTable" v-loading="API.isPlayerModerationsLoading"><template #tool>
                     <div style="margin:0 0 10px;display:flex;align-items:center">
                         <el-select v-model="playerModerationTable.filters[0].value" @change="saveTableFilters" multiple
@@ -726,11 +840,11 @@
                         </el-tooltip>
                     </div>
                 </template>
-                <el-table-column label="날짜" prop="created" sortable="custom" width="100"><template v-once
+                <el-table-column label="날짜" prop="created" sortable="custom" width="110"><template v-once
                         #default="scope">
-                        <el-tooltip placement="right"><template #content><span>{{ scope.row.created |
-                                    formatDate('YYYY-MM-DD HH24:MI:SS') }}</span></template><span>{{ scope.row.created |
-                                formatDate('MM-DD HH24:MI') }}</span></el-tooltip>
+                        <el-tooltip placement="right"><template #content><span>{{ scope.row.created | formatDate('long')
+                                    }}</span></template><span>{{ scope.row.created | formatDate('short') }}</span>
+                        </el-tooltip>
                     </template></el-table-column>
                 <el-table-column label="종류" prop="type" width="100"></el-table-column>
                 <el-table-column label="출처" prop="sourceDisplayName"><template v-once #default="scope"><span
@@ -746,6 +860,7 @@
             </data-tables>
         </div>
         <div class="x-container" v-show="$refs.menu &amp;&amp; $refs.menu.activeIndex === 'notification'"
+            v-if="$refs.menu &amp;&amp; $refs.menu.activeIndex === 'notification'"
             v-loading="API.isNotificationsLoading">
             <data-tables v-bind="notificationTable"><template #tool>
                     <div style="margin:0 0 10px;display:flex;align-items:center">
@@ -764,11 +879,11 @@
                         </el-tooltip>
                     </div>
                 </template>
-                <el-table-column label="날짜" prop="created_at" sortable="custom" width="100"><template v-once
+                <el-table-column label="날짜" prop="created_at" sortable="custom" width="110"><template v-once
                         #default="scope">
                         <el-tooltip placement="right"><template #content><span>{{ scope.row.created_at |
-                                    formatDate('YYYY-MM-DD HH24:MI:SS') }}</span></template><span>{{
-                                scope.row.created_at | formatDate('MM-DD HH24:MI') }}</span></el-tooltip>
+                                    formatDate('long') }}</span></template><span>{{ scope.row.created_at |
+                                formatDate('short') }}</span></el-tooltip>
                     </template></el-table-column>
                 <el-table-column label="종류" prop="type" width="150"><template v-once #default="scope">
                         <el-tooltip placement="top" v-if="scope.row.type === 'invite'"><template #content>
@@ -785,7 +900,7 @@
                             v-if="scope.row.details &amp;&amp; scope.row.details.imageUrl">
                             <el-popover placement="right" width="500px" trigger="click"><img class="x-link"
                                     slot="reference" v-lazy="scope.row.details.imageUrl"
-                                    style="flex:none;height:60px;border-radius:4px"><img class="x-link"
+                                    style="flex:none;width:90px;border-radius:4px"><img class="x-link"
                                     v-lazy="scope.row.details.imageUrl" style="width:500px"
                                     @click="openExternalLink(scope.row.details.imageUrl)"></el-popover>
                         </template></template></el-table-column>
@@ -800,7 +915,7 @@
                 <el-table-column label="메뉴" width="100" align="right"><template v-once #default="scope"><template
                             v-if="scope.row.senderUserId !== API.currentUser.id &amp;&amp; !scope.row.$isExpired"><template
                                 v-if="scope.row.type === 'friendRequest'">
-                                <el-tooltip placement="top" content="Accept" :disabled="hideTooltips">
+                                <el-tooltip placement="top" content="수락" :disabled="hideTooltips">
                                     <el-button type="text" icon="el-icon-check" size="mini"
                                         @click="acceptNotification(scope.row)"></el-button>
                                 </el-tooltip>
@@ -811,7 +926,7 @@
                                 </el-tooltip>
                             </template><template v-else-if="scope.row.type === 'requestInvite'"><template
                                     v-if="lastLocation.location &amp;&amp; isGameRunning &amp;&amp; !checkCanInvite(lastLocation.location)">
-                                    <el-tooltip placement="top" content="Invite" :disabled="hideTooltips">
+                                    <el-tooltip placement="top" content="초대" :disabled="hideTooltips">
                                         <el-button type="text" icon="el-icon-check" size="mini"
                                             @click="acceptRequestInvite(scope.row)"></el-button>
                                     </el-tooltip>
@@ -823,7 +938,7 @@
                                 </el-tooltip>
                             </template><template
                                 v-if="scope.row.type !== 'requestInviteResponse' &amp;&amp; scope.row.type !== 'inviteResponse' &amp;&amp; scope.row.type !== 'message'">
-                                <el-tooltip placement="top" content="거정" :disabled="hideTooltips">
+                                <el-tooltip placement="top" content="거절" :disabled="hideTooltips">
                                     <el-button type="text" icon="el-icon-close" size="mini" style="margin-left:5px"
                                         @click="hideNotification(scope.row)"></el-button>
                                 </el-tooltip>
@@ -846,7 +961,7 @@
                     </div>
                     <div class="x-friend-item" style="cursor:default">
                         <div class="detail"><span class="name">최근 로그인</span><span class="extra">{{
-                                API.currentUser.last_login | formatDate('YYYY-MM-DD HH24:MI:SS') }}</span></div>
+                                API.currentUser.last_login | formatDate('long') }}</span></div>
                     </div>
                     <div class="x-friend-item" style="cursor:default">
                         <div class="detail"><span class="name">2단계 인증 (2FA)</span><span class="extra">{{
@@ -859,7 +974,7 @@
                     <el-button size="small" icon="el-icon-printer" @click="showExportFriendsListDialog()"
                         style="margin-left:0;margin-right:5px;margin-top:10px">친구 목록 내보내기</el-button>
                     <el-button size="small" icon="el-icon-user" @click="showExportAvatarsListDialog()"
-                        style="margin-left:0;margin-right:5px;margin-top:10px">Export Own Avatars</el-button>
+                        style="margin-left:0;margin-right:5px;margin-top:10px">내 아바타 목록 내보내기</el-button>
                     <el-button size="small" icon="el-icon-chat-dot-round" @click="showDiscordNamesDialog()"
                         style="margin-left:0;margin-right:5px;margin-top:10px">Discord 이름</el-button>
                 </div>
@@ -874,7 +989,7 @@
                 </div>
             </div>
             <div class="options-container"><span class="header">VRC SDK 다운로드</span>
-                <el-tooltip placement="top" content="Refresh" :disabled="hideTooltips">
+                <el-tooltip placement="top" content="새로고침" :disabled="hideTooltips">
                     <el-button type="default" @click="API.getConfig()" size="mini" icon="el-icon-refresh" circle
                         style="margin-left:5px"></el-button>
                 </el-tooltip>
@@ -994,8 +1109,8 @@
             <div class="options-container"><span class="header">이전 표시 이름</span>
                 <data-tables v-bind="pastDisplayNameTable" style="margin-top:10px">
                     <el-table-column label="날짜" prop="updated_at" sortable="custom"><template v-once
-                            #default="scope"><span>{{ scope.row.updated_at | formatDate('YYYY-MM-DD HH24:MI:SS')
-                                }}</span></template></el-table-column>
+                            #default="scope"><span>{{ scope.row.updated_at | formatDate('long') }}</span></template>
+                    </el-table-column>
                     <el-table-column label="이름" prop="displayName"></el-table-column>
                 </data-tables>
             </div>
@@ -1035,7 +1150,7 @@
             <div class="options-container" style="margin-top:0"><span class="header">친구 목록</span>
                 <div style="float:right;font-size:13px"><span>누락된 항목 불러오기</span>
                     <el-tooltip placement="top" style="margin-left:5px"
-                        content="This spams the API a little so use it sparingly"><i class="el-icon-warning"></i>
+                        content="불러오기 시에 과도한 API 요청으로 인하여 임시 차단될 수 있으니 자주 사용하지 마세요."><i class="el-icon-warning"></i>
                     </el-tooltip><template v-if="friendsListLoading"><span v-text="friendsListLoadingProgress"
                             style="margin-left:5px"></span>
                         <el-tooltip placement="top" content="취소" :disabled="hideTooltips">
@@ -1113,9 +1228,13 @@
                             #default="scope"><span v-if="scope.row.$timeSpent">{{ scope.row.$timeSpent | timeToText
                                 }}</span></template></el-table-column>
                     <el-table-column label="마지막 본날" width="170" prop="$lastSeen" sortable
-                        :sort-method="(a, b) =&gt; sortAlphabetically(a, b, '$lastSeen')"></el-table-column>
+                        :sort-method="(a, b) =&gt; sortAlphabetically(a, b, '$lastSeen')"><template v-once
+                            #default="scope"><span>{{ scope.row.$lastSeen | formatDate('long') }}</span></template>
+                    </el-table-column>
                     <el-table-column label="마지막 로그인" width="170" prop="last_login" sortable
-                        :sort-method="(a, b) =&gt; sortAlphabetically(a, b, 'last_login')"></el-table-column>
+                        :sort-method="(a, b) =&gt; sortAlphabetically(a, b, 'last_login')"><template v-once
+                            #default="scope"><span>{{ scope.row.last_login | formatDate('long') }}</span></template>
+                    </el-table-column>
                     <el-table-column label="가입한 날짜" width="120" prop="date_joined" sortable
                         :sort-method="(a, b) =&gt; sortAlphabetically(a, b, 'date_joined')"></el-table-column>
                     <el-table-column label="친구 끊기" width="70" align="right"><template v-once #default="scope">
@@ -1135,7 +1254,7 @@
                     <div class="x-friend-item" @click="checkForVRCXUpdate">
                         <div class="detail"><span class="name">최신 버전</span><span class="extra"
                                 v-if="latestAppVersion" v-text="latestAppVersion"></span><span class="extra"
-                                v-else>클릭하여 새로고침</span></div>
+                                v-else>Click to refresh</span></div>
                     </div>
                     <div class="x-friend-item" @click="openExternalLink('https://github.com/pypy-vrc/VRCX')">
                         <div class="detail"><span class="name">Repository URL</span><span
@@ -1154,10 +1273,10 @@
                 </div>
                 <div class="options-container-item"><span class="name">자동 업데이트:</span><br>
                     <el-radio-group v-model="autoUpdateVRCX" @change="saveAutoUpdateVRCX" size="mini">
-                        <el-radio-button label="끄기"></el-radio-button>
-                        <el-radio-button label="알려주기"></el-radio-button>
-                        <el-radio-button label="자동 다운로드"></el-radio-button>
-                        <el-radio-button label="자동 설치"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="Notify">알려주기</el-radio-button>
+                        <el-radio-button label="Auto Download">자동 다운로드</el-radio-button>
+                        <el-radio-button label="Auto Install">자동 설치</el-radio-button>
                     </el-radio-group>
                 </div>
             </div>
@@ -1181,7 +1300,7 @@
                 </div>
                 <div class="options-container-item">
                     <el-dropdown @click.native.stop trigger="click" size="small">
-                        <el-button size="mini"><span>Page Size: {{ tablePageSize }} <i
+                        <el-button size="mini"><span>페이지 크기: {{ tablePageSize }} <i
                                     class="el-icon-arrow-down el-icon--right"></i></span></el-button>
                         <el-dropdown-menu #default="dropdown">
                             <el-dropdown-item v-for="(number) in [10, 15, 25, 50, 100]" v-text="number"
@@ -1226,57 +1345,50 @@
             <div class="options-container"><span class="header">유저 색상</span>
                 <div class="options-container-item">
                     <div>
-                        <v-swatches class="x-tag-untrusted" v-model="trustColor.untrusted" show-fallback
-                            fallback-input-type="color" popover-x="right" :swatches="trustColorSwatches"><span
-                                class="color-picker" slot="trigger"><i class="el-icon-s-open"></i> Visitor</span>
-                        </v-swatches>
-                        <div>
-                            <v-swatches class="x-tag-basic" v-model="trustColor.basic" show-fallback
-                                fallback-input-type="color" popover-x="right" :swatches="trustColorSwatches"><span
-                                    class="color-picker" slot="trigger"><i class="el-icon-s-open"></i> New User</span>
-                            </v-swatches>
-                        </div>
-                        <div>
-                            <v-swatches class="x-tag-known" v-model="trustColor.known" show-fallback
-                                fallback-input-type="color" popover-x="right" :swatches="trustColorSwatches"><span
-                                    class="color-picker" slot="trigger"><i class="el-icon-s-open"></i> User</span>
-                            </v-swatches>
-                        </div>
-                        <div>
-                            <v-swatches class="x-tag-trusted" v-model="trustColor.trusted" show-fallback
-                                fallback-input-type="color" popover-x="right" :swatches="trustColorSwatches"><span
-                                    class="color-picker" slot="trigger"><i class="el-icon-s-open"></i> Known User</span>
-                            </v-swatches>
-                        </div>
-                        <div>
-                            <v-swatches class="x-tag-veteran" v-model="trustColor.veteran" show-fallback
-                                fallback-input-type="color" popover-x="right" :swatches="trustColorSwatches"><span
-                                    class="color-picker" slot="trigger"><i class="el-icon-s-open"></i> Trusted
-                                    User</span></v-swatches>
-                        </div>
-                        <div></div>
-                        <v-swatches class="x-tag-legend" v-model="trustColor.legend" show-fallback
-                            fallback-input-type="color" popover-x="right" :swatches="trustColorSwatches"><span
-                                class="color-picker" slot="trigger"><i class="el-icon-s-open"></i> Veteran User</span>
-                        </v-swatches>
+                        <el-color-picker v-model="trustColor.untrusted" @change="updatetrustColor" size="mini"
+                            :predefine="['#CCCCCC']"></el-color-picker><span class="color-picker x-tag-untrusted"
+                            slot="trigger">Visitor</span>
                     </div>
                     <div>
-                        <v-swatches class="x-tag-vip" v-model="trustColor.vip" show-fallback fallback-input-type="color"
-                            popover-x="right" :swatches="trustColorSwatches"><span class="color-picker"
-                                slot="trigger"><i class="el-icon-s-open"></i> VRChat Team</span></v-swatches>
+                        <el-color-picker v-model="trustColor.basic" @change="updatetrustColor" size="mini"
+                            :predefine="['#1778ff']"></el-color-picker><span class="color-picker x-tag-basic"
+                            slot="trigger">New User</span>
                     </div>
                     <div>
-                        <v-swatches class="x-tag-troll" v-model="trustColor.troll" show-fallback
-                            fallback-input-type="color" popover-x="right" :swatches="trustColorSwatches"><span
-                                class="color-picker" slot="trigger"><i class="el-icon-s-open"></i> Nuisance</span>
-                        </v-swatches>
+                        <el-color-picker v-model="trustColor.known" @change="updatetrustColor" size="mini"
+                            :predefine="['#2bcf5c']"></el-color-picker><span class="color-picker x-tag-known"
+                            slot="trigger">User</span>
                     </div>
                     <div>
-                        <v-swatches class="x-tag-legendary" v-model="trustColor.legendary" show-fallback
-                            fallback-input-type="color" popover-x="right" :swatches="trustColorSwatches"><span
-                                class="color-picker" slot="trigger"><i class="el-icon-s-open"></i> Legend</span>
-                        </v-swatches>
-                        <el-switch v-model="legendColorOverride" style="padding-bottom:5px;padding-left:3px"
+                        <el-color-picker v-model="trustColor.trusted" @change="updatetrustColor" size="mini"
+                            :predefine="['#ff7b42']"></el-color-picker><span class="color-picker x-tag-trusted"
+                            slot="trigger">Known User</span>
+                    </div>
+                    <div>
+                        <el-color-picker v-model="trustColor.veteran" @change="updatetrustColor" size="mini"
+                            :predefine="['#b18fff', '#8143e6']"></el-color-picker><span
+                            class="color-picker x-tag-veteran" slot="trigger">Trusted User</span>
+                    </div>
+                    <div>
+                        <el-color-picker v-model="trustColor.legend" @change="updatetrustColor" size="mini"
+                            :predefine="['#ffd000', '#abcdef']"></el-color-picker><span
+                            class="color-picker x-tag-legend" slot="trigger">Veteran User</span>
+                    </div>
+                    <div>
+                        <el-color-picker v-model="trustColor.vip" @change="updatetrustColor" size="mini"
+                            :predefine="['#ff2626']"></el-color-picker><span class="color-picker x-tag-vip"
+                            slot="trigger">VRChat Team</span>
+                    </div>
+                    <div>
+                        <el-color-picker v-model="trustColor.troll" @change="updatetrustColor" size="mini"
+                            :predefine="['#782f2f']"></el-color-picker><span class="color-picker x-tag-troll"
+                            slot="trigger">Nuisance</span>
+                    </div>
+                    <div>
+                        <el-color-picker v-model="trustColor.legendary" @change="updatetrustColor" size="mini"
+                            :predefine="['#ff69b4', '#b52626']"></el-color-picker><span
+                            class="color-picker x-tag-legendary" slot="trigger">Legend</span>
+                        <el-switch v-model="legendColorOverride" style="padding-bottom:21px;padding-left:6px"
                             @change="saveLegendColorOverride"></el-switch>
                     </div>
                 </div>
@@ -1304,13 +1416,14 @@
                 </div>
             </div>
             <div class="options-container"><span class="header">SteamVR 오버레이</span>
-                <div class="options-container-item"><span>*VRChat이 실행 중일 때 자동으로 실행됩니다.</span><br><br><span>Grip: Vive 또는 기타 컨트롤러 그랩 버튼, Oculus X/A
-                        버튼</span><br><span>Menu: Vive 메뉴, Index B, Oculus Y/B 버튼</span><br></div>
+                <div class="options-container-item"><span>* VRChat이 실행 중일 때 자동으로 실행됩니다.</span><br><br><span>Grip: Vive 또는 기타 컨트롤러 그랩 버튼, Oculus X/A
+                    버튼</span><br><span>Menu: Vive Menu, Index B, Oculus Y/B 버튼</span><br></div>
                 <div class="options-container-item"><span class="name">활성화</span>
                     <el-switch v-model="openVR" @change="saveOpenVROption"></el-switch>
                 </div>
-                <div class="options-container-item"><span class="name">SteamVR 시작시 항상 실행</span>
-                    <el-switch v-model="openVRAlways" @change="saveOpenVROption" :disabled="!openVR"></el-switch>
+                <div class="options-container-item" style="min-width:118px"><span class="name">시작시 실행</span>
+                    <el-switch v-model="openVRAlways" @change="saveOpenVROption" inactive-text="VRChat"
+                        active-text="SteamVR" :disabled="!openVR"></el-switch>
                 </div>
                 <div class="options-container-item"><span class="name">비공개 월드 숨기기</span>
                     <el-switch v-model="hidePrivateFromFeed" @change="saveOpenVROption"></el-switch>
@@ -1322,7 +1435,7 @@
                     <el-switch v-model="overlaybutton" @change="saveOpenVROption" inactive-text="Grip"
                         active-text="Menu" :disabled="!openVR || !overlayWrist"></el-switch>
                 </div>
-                <div class="options-container-item"><span class="name">배경 색</span>
+                <div class="options-container-item"><span class="name">배경 색상</span>
                     <el-switch v-model="vrBackgroundEnabled" @change="saveOpenVROption"
                         :disabled="!openVR || !overlayWrist"></el-switch>
                 </div>
@@ -1332,6 +1445,10 @@
                 </div>
                 <div class="options-container-item"><span class="name">VR 기기 숨기기</span>
                     <el-switch v-model="hideDevicesFromFeed" @change="saveOpenVROption"
+                        :disabled="!openVR || !overlayWrist"></el-switch>
+                </div>
+                <div class="options-container-item"><span class="name">CPU 사용량 숨기기</span>
+                    <el-switch v-model="hideCpuUsageFromFeed" @change="saveOpenVROption"
                         :disabled="!openVR || !overlayWrist"></el-switch>
                 </div>
                 <div class="options-container-item">
@@ -1359,11 +1476,11 @@
                 </div>
                 <div class="options-container-item"><span class="name">데스크탑 알림, 언제 알림을 표시할까요?:</span><br>
                     <el-radio-group v-model="desktopToast" @change="saveOpenVROption" size="mini">
-                        <el-radio-button label="안함"></el-radio-button>
-                        <el-radio-button label="VR 안에서"></el-radio-button>
-                        <el-radio-button label="게임 종료시"></el-radio-button>
-                        <el-radio-button label="게임 실행시"></el-radio-button>
-                        <el-radio-button label="항상"></el-radio-button>
+                        <el-radio-button label="Never">안함</el-radio-button>
+                        <el-radio-button label="Inside VR">VR 안에서</el-radio-button>
+                        <el-radio-button label="Game Closed">게임 종료시</el-radio-button>
+                        <el-radio-button label="Game Running">게임 실행시</el-radio-button>
+                        <el-radio-button label="Always">항상</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="options-container-item">
@@ -1371,11 +1488,11 @@
                 </div><br><span class="sub-header">Text-To-Speech 옵션</span>
                 <div class="options-container-item"><span class="name">알림 TTS, 언제 재생할까요?:</span><br>
                     <el-radio-group v-model="notificationTTS" @change="saveNotificationTTS" size="mini">
-                        <el-radio-button label="안함"></el-radio-button>
-                        <el-radio-button label="VR 안에서"></el-radio-button>
-                        <el-radio-button label="게임 종료시"></el-radio-button>
-                        <el-radio-button label="게임 실행시"></el-radio-button>
-                        <el-radio-button label="항상"></el-radio-button>
+                        <el-radio-button label="Never">안함</el-radio-button>
+                        <el-radio-button label="Inside VR">VR 안에서</el-radio-button>
+                        <el-radio-button label="Game Closed">게임 종료시</el-radio-button>
+                        <el-radio-button label="Game Running">게임 실행시</el-radio-button>
+                        <el-radio-button label="Always">항상</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="options-container-item"><span class="name">TTS 음성</span>
@@ -1393,27 +1510,35 @@
                     class="sub-header">월드 자동 캐싱</span><br>
                 <div class="options-container-item"><span class="name">초대 시 다운로드:</span><br>
                     <el-radio-group v-model="worldAutoCacheInvite" @change="saveOpenVROption" size="mini">
-                        <el-radio-button label="안함"></el-radio-button>
-                        <el-radio-button label="게임 종료시"></el-radio-button>
-                        <el-radio-button label="게임 실행시"></el-radio-button>
-                        <el-radio-button label="항상"></el-radio-button>
+                        <el-radio-button label="Never">안함</el-radio-button>
+                        <el-radio-button label="Game Closed">게임 종료시</el-radio-button>
+                        <el-radio-button label="Game Running">게임 실행시</el-radio-button>
+                        <el-radio-button label="Always">항상</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="options-container-item">
                     <el-switch v-model="worldAutoCacheInviteFilter" @change="saveOpenVROption" inactive-text="즐겨찾기"
-                        active-text="모두" :disabled="worldAutoCacheInvite === 'Never'"></el-switch>
+                        active-text="친구" :disabled="worldAutoCacheInvite === 'Never'"></el-switch>
                 </div>
                 <div class="options-container-item"><span class="name">GPS시 다운로드:</span><br>
                     <el-radio-group v-model="worldAutoCacheGPS" @change="saveOpenVROption" size="mini">
-                        <el-radio-button label="안함"></el-radio-button>
-                        <el-radio-button label="게임 종료시"></el-radio-button>
-                        <el-radio-button label="게임 실행시"></el-radio-button>
-                        <el-radio-button label="항상"></el-radio-button>
+                        <el-radio-button label="Never">안함</el-radio-button>
+                        <el-radio-button label="Game Closed">게임 종료시</el-radio-button>
+                        <el-radio-button label="Game Running">게임 실행시</el-radio-button>
+                        <el-radio-button label="Always">항상</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="options-container-item">
                     <el-switch v-model="worldAutoCacheGPSFilter" @change="saveOpenVROption" inactive-text="즐겨찾기"
-                        active-text="모두" :disabled="worldAutoCacheGPS === 'Never'"></el-switch>
+                        active-text="친구" :disabled="worldAutoCacheGPS === 'Never'"></el-switch>
+                </div>
+                <div class="options-container-item" v-if="photonLoggingEnabled"><span class="name">포탈 생성시 다운로드:</span><br>
+                    <el-radio-group v-model="portalAutoCache" @change="saveOpenVROption" size="mini">
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
+                        <el-radio-button label="Everyone">모두</el-radio-button>
+                    </el-radio-group>
                 </div>
                 <div class="options-container-item">
                     <el-button size="small" icon="el-icon-download" @click="showDownloadDialog">다운로드 기록
@@ -1424,7 +1549,8 @@
                 </div>
             </div>
             <div class="options-container"><span class="header">어플리케이션</span>
-                <div class="options-container-item"><span class="name">Primary Password 사용</span>
+                <div class="options-container-item"><span class="name" style="min-width:236px">암호화 비밀번호
+                        (자동 로그인 비활성화됨)</span>
                     <el-switch v-model="enablePrimaryPassword" @change="enablePrimaryPasswordChange"
                         :disabled="!loginForm.savedCredentials[API.currentUser.username]"></el-switch>
                 </div>
@@ -1437,6 +1563,10 @@
                 <div class="options-container-item"><span class="name">트래이 아이콘으로 숨기기</span>
                     <el-switch v-model="isCloseToTray"></el-switch>
                 </div>
+                <div class="options-container-item"><span class="name">시간 형식</span>
+                    <el-switch v-model="dtHour12" @change="setDatetimeFormat" inactive-text="24시간"
+                        active-text="12시간"></el-switch>
+                </div>
                 <div class="options-container-item">
                     <el-button-group>
                         <el-button size="small" icon="el-icon-s-operation" @click="showLaunchOptions()">실행 옵션
@@ -1444,6 +1574,15 @@
                         <el-button size="small" icon="el-icon-s-operation" @click="showVRChatConfig()">VRChat
                             config.json</el-button>
                     </el-button-group>
+                </div>
+            </div>
+            <div class="options-container"><span class="header">Remote Avatar Database</span>
+                <div class="options-container-item"><span class="name">활성화</span>
+                    <el-switch v-model="avatarRemoteDatabase" @change="saveOpenVROption"></el-switch>
+                </div>
+                <div class="options-container-item">
+                    <el-button size="small" icon="el-icon-user-solid" @click="promptSetAvatarRemoteDatabase"
+                        :disabled="!avatarRemoteDatabase">Avatar Database Provider</el-button>
                 </div>
             </div>
             <div class="options-container"><span class="header">YouTube API</span>
@@ -1463,9 +1602,6 @@
             </div>
             <div class="options-container" v-if="photonLoggingEnabled"><span class="header">Photon Logging
                     Overlay</span>
-                <el-tooltip placement="top" style="margin-left:5px" content="(click for more info)"><i
-                        class="el-icon-warning" style="cursor:pointer"
-                        @click="openExternalLink(recommendedSteamParams)"></i></el-tooltip>
                 <div class="options-container-item"></div><span class="sub-header">Photon Event HUD</span>
                 <div class="options-container-item"><span class="name">활성화</span>
                     <el-switch v-model="photonEventOverlay" @change="saveEventOverlay" :disabled="!openVR"></el-switch>
@@ -1477,9 +1613,9 @@
                 <div class="options-container-item"><span class="name">필터</span>
                     <el-radio-group v-model="photonEventOverlayFilter" @change="saveEventOverlay" size="mini"
                         :disabled="!openVR || !photonEventOverlay">
-                        <el-radio-button label="즐겨찾기"></el-radio-button>
-                        <el-radio-button label="친구"></el-radio-button>
-                        <el-radio-button label="모두"></el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
+                        <el-radio-button label="Everyone">모두</el-radio-button>
                     </el-radio-group>
                 </div><span class="sub-header">User timeout HUD</span>
                 <div class="options-container-item"><span class="name">활성화</span>
@@ -1488,9 +1624,9 @@
                 <div class="options-container-item"><span class="name">필터</span>
                     <el-radio-group v-model="timeoutHudOverlayFilter" @change="saveEventOverlay" size="mini"
                         :disabled="!openVR || !timeoutHudOverlay">
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
-                        <el-radio-button label="Everyone"></el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
+                        <el-radio-button label="Everyone">모두</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="options-container-item">
@@ -1509,6 +1645,7 @@
                             v-text="API.cachedAvatarNames.size"></span></span></div>
                 <div class="options-container-item">
                     <el-button size="small" icon="el-icon-delete-solid" @click="clearVRCXCache">캐시 비우기</el-button>
+                    <el-button size="small" icon="el-icon-time" @click="promptAutoClearVRCXCacheFrequency">자동 캐시 삭제</el-button>
                 </div>
                 <div class="options-container-item">
                     <el-button size="small" icon="el-icon-tickets" @click="showConsole">콘솔 보기</el-button>
@@ -1567,7 +1704,7 @@
                                         :class="item.ref.$trustColor"></span>
                                     <location class="extra" :location="item.ref.location" :link="false"></location>
                                 </div><img class="avatar" v-lazy="userImage(item.ref)">
-                            </template><span v-else>Search More: <span v-text="item.label"
+                            </template><span v-else>자세히 검색: <span v-text="item.label"
                                     style="font-weight:bold"></span></span></div>
                     </el-option>
                 </el-select>
@@ -1675,8 +1812,9 @@
                 </div>
             </div>
         </div>
-        <el-dialog class="x-dialog x-user-dialog" ref="userDialog" :visible.sync="userDialog.visible"
-            :show-close="false" width="770px">
+        <el-dialog class="x-dialog x-user-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="userDialog" :visible.sync="userDialog.visible" :show-close="false"
+            width="770px">
             <div v-loading="userDialog.loading">
                 <div style="display:flex">
                     <el-popover v-if="userDialog.ref.profilePicOverride" placement="right" width="500px"
@@ -1694,7 +1832,7 @@
                             <div>
                                 <el-tooltip v-if="userDialog.ref.status" placement="top"><template #content><span
                                             v-if="userDialog.ref.state === 'active'">액티브</span><span
-                                            v-else-if="userDialog.ref.location === 'offline'">Offline</span><span
+                                            v-else-if="userDialog.ref.location === 'offline'">오프라인</span><span
                                             v-else-if="userDialog.ref.status === 'active'">온라인</span><span
                                             v-else-if="userDialog.ref.status === 'join me'">Join Me</span><span
                                             v-else-if="userDialog.ref.status === 'ask me'">Ask Me</span><span
@@ -1720,6 +1858,8 @@
                                 <el-tag class="x-tag-friend" v-if="userDialog.isFriend &amp;&amp; userDialog.friend"
                                     type="info" effect="plain" size="mini" style="margin-right:5px;margin-top:5px">
                                     {{userDialog.friend.no}}번째 친구</el-tag>
+                                <el-tag class="x-tag-troll" v-if="userDialog.ref.$isTroll" type="info" effect="plain"
+                                    size="mini" style="margin-right:5px;margin-top:5px">Nuisance</el-tag>
                                 <el-tag class="x-tag-legendary" v-if="userDialog.ref.$isLegend" type="info"
                                     effect="plain" size="mini" style="margin-right:5px;margin-top:5px">Legend</el-tag>
                                 <el-tag class="x-tag-vip" v-if="userDialog.ref.$isModerator" type="info" effect="plain"
@@ -1749,7 +1889,7 @@
                                 <el-button @click="userDialogCommand('Delete Favorite')" type="warning"
                                     icon="el-icon-star-on" circle></el-button>
                             </el-tooltip>
-                            <el-tooltip v-else placement="top" content="즐겨찾기에 추가" :disabled="hideTooltips">
+                            <el-tooltip v-else placement="top" content="Add to favorites" :disabled="hideTooltips">
                                 <el-button type="default" @click="userDialogCommand('Add Favorite')"
                                     icon="el-icon-star-off" circle></el-button>
                             </el-tooltip>
@@ -1793,14 +1933,14 @@
                                         </template>
                                         <el-dropdown-item v-else-if="userDialog.outgoingRequest" icon="el-icon-close"
                                             command="Cancel Friend Request">친구 요청 취소</el-dropdown-item>
-                                        <el-dropdown-item v-else icon="el-icon-plus" command="Send Friend Request">Send
-                                            Friend Request</el-dropdown-item>
+                                        <el-dropdown-item v-else icon="el-icon-plus" command="Send Friend Request">친구 요청 보내기</el-dropdown-item>
                                         <el-dropdown-item icon="el-icon-s-custom" command="Show Avatar Author" divided>
                                             아바타 제작자 보기</el-dropdown-item>
                                         <el-dropdown-item icon="el-icon-s-custom"
                                             command="Show Fallback Avatar Details">Fallback 아바타 자세히 보기
                                         </el-dropdown-item>
-                                        <el-dropdown-item v-if="userDialog.ref.currentAvatarImageUrl !== robotUrl"
+                                        <el-dropdown-item icon="el-icon-tickets" command="Previous Instances">이전 인스턴스 보기</el-dropdown-item>
+                                        <el-dropdown-item v-if="userDialog.ref.currentAvatarImageUrl"
                                             icon="el-icon-picture-outline" command="Previous Images">아바타 이전 이미지 보기</el-dropdown-item>
                                         <el-dropdown-item v-if="userDialog.isBlock" icon="el-icon-circle-check"
                                             command="Unblock" divided style="color:#F56C6C">차단 해제</el-dropdown-item>
@@ -1884,8 +2024,7 @@
                             </div>
                             <div class="x-friend-item" style="width:100%;cursor:default">
                                 <div class="detail"><span class="name"
-                                        v-if="userDialog.ref.profilePicOverride &amp;&amp; userDialog.ref.currentAvatarImageUrl">Avatar
-                                        Info Last Seen</span><span class="name" v-else>아바타 정보</span>
+                                        v-if="userDialog.id !== API.currentUser.id &amp;&amp; userDialog.ref.profilePicOverride &amp;&amp; userDialog.ref.currentAvatarImageUrl">마지막으로 본 아바타 정보</span><span class="name" v-else>아바타 정보</span>
                                     <div class="extra">
                                         <avatar-info :imageurl="userDialog.ref.currentAvatarImageUrl"
                                             :userid="userDialog.id"></avatar-info>
@@ -1907,10 +2046,9 @@
                             </div><template v-if="API.currentUser.id !== userDialog.id">
                                 <div class="x-friend-item" style="cursor:default">
                                     <div class="detail"><span class="name">마지막 본 날짜</span><span class="extra">{{
-                                            userDialog.lastSeen | formatDate('YYYY-MM-DD HH24:MI:SS') || '-' }}</span>
-                                    </div>
+                                            userDialog.lastSeen | formatDate('long') }}</span></div>
                                 </div>
-                                <div class="x-friend-item" style="cursor:default">
+                                <div class="x-friend-item" @click="showPreviousInstancesUserDialog(userDialog.ref)">
                                     <div class="detail"><span class="name">참여 횟수</span><span class="extra"
                                             v-if="userDialog.joinCount === 0">-</span><span class="extra" v-else
                                             v-text="userDialog.joinCount"></span></div>
@@ -1923,23 +2061,32 @@
                             </template>
                             <div class="x-friend-item" style="cursor:default">
                                 <div class="detail"><span class="name"
-                                        v-if="userDialog.ref.state === 'online' &amp;&amp; userDialog.ref.$online_for">온라인인 시간</span><span class="name" v-else>오프라인인 시간</span><span class="extra"
+                                        v-if="userDialog.ref.state === 'online' &amp;&amp; userDialog.ref.$online_for">온라인인 
+                                        시간</span><span class="name" v-else>오프라인인 시간</span><span class="extra"
                                         v-text="userOnlineFor(userDialog)"></span></div>
                             </div>
                             <div class="x-friend-item" style="cursor:default">
                                 <div class="detail"><span class="name">마지막 로그인</span><span class="extra">{{
-                                        userDialog.ref.last_login | formatDate('YYYY-MM-DD HH24:MI:SS') || '-' }}</span>
-                                </div>
+                                        userDialog.ref.last_login | formatDate('long') }}</span></div>
                             </div>
                             <div class="x-friend-item" style="cursor:default">
                                 <div class="detail"><span class="name">가입한 날짜</span><span class="extra"
                                         v-text="userDialog.ref.date_joined"></span></div>
-                            </div>
-                            <div class="x-friend-item" style="cursor:default">
-                                <div class="detail"><span class="name">아바타 복사</span><span class="extra"
-                                        v-if="userDialog.ref.allowAvatarCopying" style="color:#67C23A">허용</span><span
-                                        class="extra" v-else style="color:#F56C6C">거부</span></div>
-                            </div>
+                            </div><template v-if="API.currentUser.id === userDialog.id">
+                                <div class="x-friend-item" @click="toggleAvatarCopying">
+                                    <div class="detail"><span class="name">아바타 복사</span><span class="extra"
+                                            v-if="userDialog.ref.allowAvatarCopying"
+                                            style="color:#67C23A">허용</span><span class="extra" v-else
+                                            style="color:#F56C6C">거부</span></div>
+                                </div>
+                            </template><template v-else>
+                                <div class="x-friend-item" style="cursor:default">
+                                    <div class="detail"><span class="name">아바타 복사</span><span class="extra"
+                                            v-if="userDialog.ref.allowAvatarCopying"
+                                            style="color:#67C23A">허용</span><span class="extra" v-else
+                                            style="color:#F56C6C">거부</span></div>
+                                </div>
+                            </template>
                             <div class="x-friend-item"
                                 v-if="userDialog.ref.id === API.currentUser.id &amp;&amp; API.currentUser.homeLocation"
                                 @click="showWorldDialog(API.currentUser.homeLocation)" style="width:100%">
@@ -2005,11 +2152,11 @@
                             <el-radio label="public">공개</el-radio>
                             <el-radio label="private">비공개</el-radio>
                         </el-radio-group>
-                        <div class="x-friend-list" v-loading="userDialog.isAvatarsLoading"
-                            style="margin-top:10px;min-height:60px">
+                        <div class="x-friend-list" style="margin-top:10px;min-height:60px">
                             <div class="x-friend-item x-friend-item-border" v-for="avatar in userDialogAvatars"
-                                :key="avatar.id" @click="showAvatarDialog(avatar.id)">
-                                <div class="avatar"><img v-lazy="avatar.thumbnailImageUrl"></div>
+                                @click="showAvatarDialog(avatar.id)">
+                                <div class="avatar"><img v-if="avatar.thumbnailImageUrl"
+                                        v-lazy="avatar.thumbnailImageUrl"></div>
                                 <div class="detail"><span class="name" v-text="avatar.name"></span><span class="extra"
                                         v-text="avatar.releaseStatus" v-if="avatar.releaseStatus === 'public'"
                                         style="color: #67c23a;"></span><span class="extra" v-text="avatar.releaseStatus"
@@ -2031,8 +2178,9 @@
                 </el-tabs>
             </div>
         </el-dialog>
-        <el-dialog class="x-dialog x-world-dialog" ref="worldDialog" :visible.sync="worldDialog.visible"
-            :show-close="false" width="770px">
+        <el-dialog class="x-dialog x-world-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="worldDialog" :visible.sync="worldDialog.visible" :show-close="false"
+            width="770px">
             <div v-loading="worldDialog.loading">
                 <div style="display:flex">
                     <el-popover placement="right" width="500px" trigger="click"><img class="x-link" slot="reference"
@@ -2043,22 +2191,28 @@
                     <div style="flex:1;display:flex;align-items:center;margin-left:15px">
                         <div style="flex:1">
                             <div><i class="el-icon-s-home"
-                                    v-show="API.currentUser.$homeLocation &amp;&amp; API.currentUser.$homeLocation.worldId === worldDialog.id"></i><span
-                                    v-text="worldDialog.ref.name" style="font-weight:bold"></span></div>
+                                    v-show="API.currentUser.$homeLocation &amp;&amp; API.currentUser.$homeLocation.worldId === worldDialog.id"
+                                    style="margin-right:5px"></i><span v-text="worldDialog.ref.name"
+                                    style="font-weight:bold"></span></div>
                             <div style="margin-top:5px"><span class="x-link" v-text="worldDialog.ref.authorName"
                                     @click="showUserDialog(worldDialog.ref.authorId)"
                                     style="color:#909399;font-family:monospace"></span></div>
-                            <div style="margin-top:5px">
+                            <div>
                                 <el-tag v-if="worldDialog.ref.$isLabs" type="primary" effect="plain" size="mini"
                                     style="margin-right:5px;margin-top:5px">커뮤니티 실험실</el-tag>
                                 <el-tag v-else-if="worldDialog.ref.releaseStatus === 'public'" type="success"
                                     effect="plain" size="mini" style="margin-right:5px;margin-top:5px">공개</el-tag>
                                 <el-tag v-else type="danger" effect="plain" size="mini"
                                     style="margin-right:5px;margin-top:5px">비공개</el-tag>
+                                <el-tag class="x-tag-platform-pc" v-if="worldDialog.isPC" type="info" effect="plain"
+                                    size="mini" style="margin-right:5px;margin-top:5px">PC</el-tag>
+                                <el-tag class="x-tag-platform-quest" v-if="worldDialog.isQuest" type="info"
+                                    effect="plain" size="mini" style="margin-right:5px;margin-top:5px">Quest</el-tag>
                                 <el-tag type="info" effect="plain" size="mini" v-text="worldDialog.fileSize"
                                     style="margin-right:5px;margin-top:5px"></el-tag>
                                 <el-tag v-if="worldDialog.inCache" type="info" effect="plain" size="mini"
-                                    style="margin-top:5px"><span v-text="worldDialog.cacheSize"></span> 캐시</el-tag>
+                                    style="margin-right:5px;margin-top:5px"><span v-text="worldDialog.cacheSize"></span>
+                                    캐시</el-tag>
                             </div>
                             <div style="margin-top:5px"><span
                                     v-show="worldDialog.ref.name !== worldDialog.ref.description"
@@ -2103,9 +2257,10 @@
                                         icon="el-icon-magic-stick" command="Reset Home" divided>홈 리셋
                                     </el-dropdown-item>
                                     <el-dropdown-item v-else icon="el-icon-s-home" command="Make Home" divided>홈으로 만들기
-                                    </el-dropdown-item><template v-if="API.currentUser.id !== worldDialog.ref.authorId">
-                                        <el-dropdown-item icon="el-icon-picture-outline" command="Previous Images">
-                                            이전 이미지</el-dropdown-item>
+                                    </el-dropdown-item>
+                                    <el-dropdown-item icon="el-icon-tickets" command="Previous Instances">이전 인스턴스 보기</el-dropdown-item><template
+                                        v-if="API.currentUser.id !== worldDialog.ref.authorId">
+                                        <el-dropdown-item icon="el-icon-picture-outline" command="Previous Images">이전 이미지 보기</el-dropdown-item>
                                     </template><template v-else>
                                         <el-dropdown-item icon="el-icon-edit" command="Rename">이름 바꾸기</el-dropdown-item>
                                         <el-dropdown-item icon="el-icon-edit" command="Change Description">설명 바꾸기</el-dropdown-item>
@@ -2148,7 +2303,9 @@
                                         style="display:inline-block;margin-left:5px"></span><span class="flag-icon-use"
                                         v-else-if="room.$location.region === 'use'"
                                         style="display:inline-block;margin-left:5px"></span><span class="flag-icon-usw"
-                                        v-else style="display:inline-block;margin-left:5px"></span></span>
+                                        v-else style="display:inline-block;margin-left:5px"></span><i
+                                        class="el-icon-lock" v-if="room.$location.strict"
+                                        style="display:inline-block;margin-left:5px"></i></span>
                                 <el-tooltip placement="top" content="스스로에게 초대" :disabled="hideTooltips">
                                     <invite-yourself :location="room.$location.tag" style="margin-left:5px">
                                     </invite-yourself>
@@ -2211,8 +2368,8 @@
                             <div class="x-friend-item" style="cursor:default">
                                 <div class="detail"><span class="name">즐겨찾기</span><span class="extra">{{
                                         worldDialog.ref.favorites | commaNumber }}<template
-                                            v-if="worldDialog.ref.favorites &gt; 0"> ({{
-                                            Math.round(((worldDialog.ref.favorites - worldDialog.ref.visits) /
+                                            v-if="worldDialog.ref.favorites &gt; 0 &amp;&amp; worldDialog.ref.visits &gt; 0">
+                                            ({{ Math.round(((worldDialog.ref.favorites - worldDialog.ref.visits) /
                                             worldDialog.ref.visits * 100 + 100) * 100) / 100 }}%)</template></span>
                                 </div>
                             </div>
@@ -2237,13 +2394,11 @@
                             </div>
                             <div class="x-friend-item" style="cursor:default">
                                 <div class="detail"><span class="name">만든 날짜</span><span class="extra">{{
-                                        worldDialog.ref.created_at | formatDate('YYYY-MM-DD HH24:MI:SS') || '-'
-                                        }}</span></div>
+                                        worldDialog.ref.created_at | formatDate('long') }}</span></div>
                             </div>
                             <div class="x-friend-item" style="cursor:default">
                                 <div class="detail"><span class="name">마지막 업데이트</span><span class="extra">{{
-                                        worldDialog.fileCreatedAt | formatDate('YYYY-MM-DD HH24:MI:SS') || '-' }}</span>
-                                </div>
+                                        worldDialog.fileCreatedAt | formatDate('long') }}</span></div>
                             </div>
                             <div class="x-friend-item" style="cursor:default">
                                 <div class="detail"><span class="name">버전</span><span class="extra"
@@ -2255,12 +2410,16 @@
                             </div>
                             <div class="x-friend-item" style="cursor:default">
                                 <div class="detail"><span class="name">마지막 방문</span><span class="extra">{{
-                                        worldDialog.lastVisit | formatDate('YYYY-MM-DD HH24:MI:SS') || '-' }}</span>
-                                </div>
+                                        worldDialog.lastVisit | formatDate('long') }}</span></div>
                             </div>
-                            <div class="x-friend-item" style="cursor:default">
+                            <div class="x-friend-item" @click="showPreviousInstancesWorldDialog(worldDialog.ref)">
                                 <div class="detail"><span class="name">방문 횟수</span><span class="extra"
                                         v-text="worldDialog.visitCount"></span></div>
+                            </div>
+                            <div class="x-friend-item" style="cursor:default">
+                                <div class="detail"><span class="name">보낸 시간</span><span class="extra"
+                                        v-if="worldDialog.timeSpent === 0">-</span><span class="extra" v-else>{{
+                                        worldDialog.timeSpent | timeToText }}</span></div>
                             </div>
                         </div>
                     </el-tab-pane>
@@ -2276,8 +2435,9 @@
                 </el-tabs>
             </div>
         </el-dialog>
-        <el-dialog class="x-dialog x-avatar-dialog" ref="avatarDialog" :visible.sync="avatarDialog.visible"
-            :show-close="false" width="600px">
+        <el-dialog class="x-dialog x-avatar-dialog" :before-close="beforeDialogClose"
+            @mousedown.native="dialogMouseDown" @mouseup.native="dialogMouseUp" ref="avatarDialog"
+            :visible.sync="avatarDialog.visible" :show-close="false" width="600px">
             <div v-loading="avatarDialog.loading">
                 <div style="display:flex">
                     <el-popover placement="right" width="500px" trigger="click"><img class="x-link" slot="reference"
@@ -2293,15 +2453,15 @@
                                     style="color:#909399;font-family:monospace"></span></div>
                             <div style="margin-top:5px">
                                 <el-tag v-if="avatarDialog.ref.releaseStatus === 'public'" type="success" effect="plain"
-                                    size="mini" style="margin-right:5px;margin-top:5px">공개</el-tag>
-                                <el-tag v-else type="danger" effect="plain" size="mini"
-                                    style="margin-right:5px;margin-top:5px">비공개</el-tag>
+                                    size="mini" style="margin-right:5px">공개</el-tag>
+                                <el-tag v-else type="danger" effect="plain" size="mini" style="margin-right:5px">비공개
+                                </el-tag>
                                 <el-tag v-if="avatarDialog.isQuestFallback" type="info" effect="plain" size="mini"
-                                    style="margin-right:5px;margin-top:5px">Fallback</el-tag>
+                                    style="margin-right:5px">Fallback</el-tag>
                                 <el-tag v-if="avatarDialog.fileSize" type="info" effect="plain" size="mini"
-                                    v-text="avatarDialog.fileSize" style="margin-right:5px;margin-top:5px"></el-tag>
-                                <el-tag v-if="avatarDialog.inCache" type="info" effect="plain" size="mini"
-                                    style="margin-top:5px"><span v-text="avatarDialog.cacheSize"></span> 캐시</el-tag>
+                                    v-text="avatarDialog.fileSize" style="margin-right:5px"></el-tag>
+                                <el-tag v-if="avatarDialog.inCache" type="info" effect="plain" size="mini"><span
+                                        v-text="avatarDialog.cacheSize"></span> 캐시</el-tag>
                             </div>
                             <div style="margin-top:5px"><span
                                     v-show="avatarDialog.ref.name !== avatarDialog.ref.description"
@@ -2337,6 +2497,8 @@
                                 style="margin-left:5px">
                                 <el-button type="default" icon="el-icon-more" circle></el-button>
                                 <el-dropdown-menu #default="dropdown">
+                                    <el-dropdown-item icon="el-icon-refresh" command="Refresh">새로고침
+                                    </el-dropdown-item>
                                     <el-dropdown-item icon="el-icon-check" command="Select Avatar">아바타 선택
                                     </el-dropdown-item>
                                     <el-dropdown-item v-if="/quest/.test(avatarDialog.ref.tags)" icon="el-icon-check"
@@ -2368,7 +2530,7 @@
                         <div class="x-friend-list">
                             <div class="x-friend-item" style="width:100%;cursor:default">
                                 <div class="detail"><span class="name">Avatar ID</span><span class="extra">{{
-                                        avatarDialog.id }}<el-tooltip placement="top" content="Copy to clipboard"
+                                        avatarDialog.id }}<el-tooltip placement="top" content="클립보드에 복사"
                                             :disabled="hideTooltips">
                                             <el-button @click="copyAvatar(avatarDialog.id)" size="mini"
                                                 icon="el-icon-s-order" style="margin-left:5px" circle></el-button>
@@ -2376,13 +2538,11 @@
                             </div>
                             <div class="x-friend-item" style="cursor:default">
                                 <div class="detail"><span class="name">만든 날짜</span><span class="extra">{{
-                                        avatarDialog.ref.created_at | formatDate('YYYY-MM-DD HH24:MI:SS') || '-'
-                                        }}</span></div>
+                                        avatarDialog.ref.created_at | formatDate('long') }}</span></div>
                             </div>
                             <div class="x-friend-item" style="cursor:default">
                                 <div class="detail"><span class="name">마지막 업데이트</span><span class="extra">{{
-                                        avatarDialog.ref.updated_at | formatDate('YYYY-MM-DD HH24:MI:SS') || '-'
-                                        }}</span></div>
+                                        avatarDialog.ref.updated_at | formatDate('long') }}</span></div>
                             </div>
                             <div class="x-friend-item" style="cursor:default">
                                 <div class="detail"><span class="name">버전</span><span class="extra"
@@ -2409,8 +2569,9 @@
                 </el-tabs>
             </div>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="favoriteDialog" :visible.sync="favoriteDialog.visible" title="그룹 선택"
-            width="300px">
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="favoriteDialog" :visible.sync="favoriteDialog.visible"
+            title="그룹 선택" width="300px">
             <div v-loading="favoriteDialog.loading">
                 <el-button v-for="group in favoriteDialog.groups" :key="group.name"
                     style="display:block;width:100%;margin:10px 0" @click="addFavorite(group)"
@@ -2418,7 +2579,8 @@
                     group.capacity }})</el-button>
             </div>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="inviteDialog" :visible.sync="inviteDialog.visible" title="초대"
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="inviteDialog" :visible.sync="inviteDialog.visible" title="초대"
             width="450px">
             <div v-loading="inviteDialog.loading">
                 <location :location="inviteDialog.worldId" :link="false"></location>
@@ -2466,7 +2628,8 @@
                     @click="sendInvite()">초대</el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="socialStatusDialog" :visible.sync="socialStatusDialog.visible"
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="socialStatusDialog" :visible.sync="socialStatusDialog.visible"
             title="소셜 상태" width="400px">
             <div v-loading="socialStatusDialog.loading">
                 <el-collapse style="border:0">
@@ -2494,7 +2657,8 @@
                     업데이트</el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="languageDialog" :visible.sync="languageDialog.visible" title="언어"
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="languageDialog" :visible.sync="languageDialog.visible" title="언어"
             width="400px">
             <div v-loading="languageDialog.loading">
                 <div style="margin:5px 0">
@@ -2523,7 +2687,8 @@
                 </div>
             </div>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="bioDialog" :visible.sync="bioDialog.visible" title="소개" width="400px">
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="bioDialog" :visible.sync="bioDialog.visible" title="소개" width="400px">
             <div v-loading="bioDialog.loading">
                 <el-input type="textarea" v-model="bioDialog.bio" size="mini" maxlength="512" show-word-limit
                     :autosize="{ minRows:2, maxRows:5 }" placeholder="Please input a bio"></el-input>
@@ -2538,7 +2703,8 @@
                 <el-button type="primary" size="small" :disabled="bioDialog.loading" @click="saveBio">업데이트</el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="newInstanceDialog" :visible.sync="newInstanceDialog.visible"
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="newInstanceDialog" :visible.sync="newInstanceDialog.visible"
             title="새 인스턴스" width="600px">
             <el-form :model="newInstanceDialog" label-width="130px">
                 <el-form-item label="액세스 타입">
@@ -2563,12 +2729,11 @@
                         @click.native="$event.target.tagName === 'INPUT' &amp;&amp; $event.target.select()"></el-input>
                 </el-form-item>
                 <el-form-item label="인스턴스 ID">
-                    <el-input v-model="newInstanceDialog.instanceName" maxlength="16" placeholder="Random"
-                        show-word-limit size="mini"
+                    <el-input v-model="newInstanceDialog.instanceName" placeholder="랜덤" size="mini"
                         @click.native="$event.target.tagName === 'INPUT' &amp;&amp; $event.target.select()"></el-input>
                 </el-form-item>
                 <el-form-item label="인스턴스 생성자">
-                    <el-select v-model="newInstanceDialog.userId" clearable placeholder="Choose User" filterable
+                    <el-select v-model="newInstanceDialog.userId" clearable placeholder="유저 선택" filterable
                         style="width:100%">
                         <el-option-group v-if="API.currentUser" label="나">
                             <el-option class="x-friend-item" :label="API.currentUser.displayName"
@@ -2628,12 +2793,13 @@
                 <el-button size="small" @click="selfInvite(newInstanceDialog.location)">스스로에게 초대</el-button>
                 <el-button size="small" @click="showInviteDialog(newInstanceDialog.location)"
                     :disabled="(newInstanceDialog.accessType === 'friends' || newInstanceDialog.accessType === 'invite') &amp;&amp; newInstanceDialog.userId !== API.currentUser.id">
-                    Invite</el-button>
+                    초대</el-button>
                 <el-button type="primary" size="small" @click="showLaunchDialog(newInstanceDialog.location)">실행
                 </el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="launchOptionsDialog" :visible.sync="launchOptionsDialog.visible"
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="launchOptionsDialog" :visible.sync="launchOptionsDialog.visible"
             title="실행 옵션" width="400px">
             <div style="font-size:12px;">이 옵션은 고급 사용자를 위해 만들어졌습니다. <br>
                 fps 변경: --fps=&lt;N&gt; e.g.) <el-tag size="mini">--fps=144</el-tag>
@@ -2652,7 +2818,8 @@
                 </div>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="VRChatConfigDialog" :visible.sync="VRChatConfigDialog.visible"
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="VRChatConfigDialog" :visible.sync="VRChatConfigDialog.visible"
             title="VRChat Config JSON" width="420px">
             <div style="font-size:12px;word-break:keep-all">이 옵션은 고급 사용자를 위해 만들어졌습니다. <br>
                 필드를 비워 두면 기본값으로 설정되고, 설정을 적용하려면 게임 재시작이 필요합니다.</div><br><span>캐시 크기:
@@ -2701,8 +2868,9 @@
                     @click="saveVRChatConfigFile">저장</el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="youTubeApiDialog" :visible.sync="youTubeApiDialog.visible" title="YouTube API"
-            width="400px">
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="youTubeApiDialog" :visible.sync="youTubeApiDialog.visible"
+            title="YouTube API" width="400px">
             <div style="font-size:12px;">YouTube API Key를 입력해주세요. (옵션) <br></div>
             <el-input type="textarea" v-model="youTubeApiKey" placeholder="YouTube API Key" maxlength="39"
                 show-word-limit style="dispaly:block;margin-top:10px"></el-input><template #footer>
@@ -2715,7 +2883,8 @@
                 </div>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="setWorldTagsDialog" :visible.sync="setWorldTagsDialog.visible"
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="setWorldTagsDialog" :visible.sync="setWorldTagsDialog.visible"
             title="월드 테그 설정" width="400px">
             <el-checkbox v-model="setWorldTagsDialog.debugAllowed">Enable world debugging for others</el-checkbox>
             <div style="font-size:12px;margin-top:10px">Enter tags comma separated <br></div>
@@ -2728,8 +2897,9 @@
                 </div>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="downloadDialog" :visible.sync="downloadDialog.visible" title="다운로드 기록"
-            width="770px">
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="downloadDialog" :visible.sync="downloadDialog.visible"
+            title="다운로드 기록" width="770px">
             <div v-if="downloadInProgress &amp;&amp; downloadCurrent.ref"><span class="x-link"
                     v-if="downloadCurrent.type === 'Avatar'" @click="showAvatarDialog(downloadCurrent.location)"
                     v-text="downloadCurrent.ref.name"></span><span class="x-link" v-else
@@ -2777,10 +2947,11 @@
                 <el-button size="small" @click="downloadDialog.visible = false">닫기</el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="VRCXUpdateDialog" :visible.sync="VRCXUpdateDialog.visible" title="VRCX 업데이터"
-            width="400px">
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="VRCXUpdateDialog" :visible.sync="VRCXUpdateDialog.visible"
+            title="VRCX 업데이터" width="400px">
             <div v-loading="checkingForVRCXUpdate" style="margin-top:15px"><template
-                    v-if="VRCXUpdateDialog.updatePending"><span>업데이트를 설치할 준비가 되었습니다. VRCX를 재시작 하면 업데이트를 적용합니다.</span></template><template v-else>
+                    v-if="VRCXUpdateDialog.updatePending"><span>업데이트를 설치할 준비가 되었습니다. VRCX를 재시작 하면 업데이트를 적용합니다. 업데이트 적용시 영문 버전으로 변경됩니다. 한국어 버전을 원하시면 민토리 Github에서 설치해 주세요.</span></template><template v-else>
                     <el-select v-model="branch" @change="loadBranchVersions"
                         style="display:inline-block;width:150px;margin-right:15px">
                         <el-option v-once v-for="branch in branches" :key="branch.name" :label="branch.name"
@@ -2798,17 +2969,18 @@
                     설치</el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="launchDialog" :visible.sync="launchDialog.visible" title="실행"
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="launchDialog" :visible.sync="launchDialog.visible" title="실행"
             width="400px">
             <div><span v-text="launchDialog.shortUrl" style="word-break:break-all;font-size:12px"></span>
-                <el-tooltip placement="top" content="Copy to clipboard" :disabled="hideTooltips">
-                    <el-button @click="copyInstanceUrl(launchDialog.shortUrl)" size="mini" icon="el-icon-s-order"
-                        style="margin-left:5px" circle></el-button>
+                <el-tooltip placement="top" content="클립보드에 복사" :disabled="hideTooltips">
+                    <el-button v-if="launchDialog.shortUrl" @click="copyInstanceUrl(launchDialog.shortUrl)" size="mini"
+                        icon="el-icon-s-order" style="margin-left:5px" circle></el-button>
                 </el-tooltip>
             </div>
             <div style="margin-top:10px"><span v-text="launchDialog.url"
                     style="word-break:break-all;font-size:12px"></span>
-                <el-tooltip placement="top" content="Copy to clipboard" :disabled="hideTooltips">
+                <el-tooltip placement="top" content="클립보드에 복사" :disabled="hideTooltips">
                     <el-button @click="copyInstanceUrl(launchDialog.url)" size="mini" icon="el-icon-s-order"
                         style="margin-left:5px" circle></el-button>
                 </el-tooltip>
@@ -2821,23 +2993,30 @@
                     실행</el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" :visible.sync="exportFriendsListDialog" title="친구 목록 내보내기" width="650px">
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" :visible.sync="exportFriendsListDialog" title="친구 목록 내보내기"
+            width="650px">
             <el-input type="textarea" v-model="exportFriendsListContent" size="mini" rows="15" resize="none" readonly
                 style="margin-top:15px"
                 @click.native="$event.target.tagName === 'TEXTAREA' &amp;&amp; $event.target.select()"></el-input>
         </el-dialog>
-        <el-dialog class="x-dialog" :visible.sync="exportAvatarsListDialog" title="Export Own Avatars" width="650px">
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" :visible.sync="exportAvatarsListDialog" title="내 아바타 목록 내보내기"
+            width="650px">
             <el-input type="textarea" v-model="exportAvatarsListContent" size="mini" rows="15" resize="none" readonly
                 style="margin-top:15px"
                 @click.native="$event.target.tagName === 'TEXTAREA' &amp;&amp; $event.target.select()"></el-input>
         </el-dialog>
-        <el-dialog class="x-dialog" :visible.sync="discordNamesDialogVisible" title="Discord 이름" width="650px">
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" :visible.sync="discordNamesDialogVisible" title="Discord 이름"
+            width="650px">
             <div style="font-size:12px;">친구 목록 탭에서 누락된 항목 로드를 클릭하여 전체 친구 목록을 검색해 주세요.</div>
             <el-input type="textarea" v-model="discordNamesContent" size="mini" rows="15" resize="none" readonly
                 style="margin-top:15px"></el-input>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="notificationPositionDialog" :visible.sync="notificationPositionDialog.visible"
-            title="알림 위치" width="400px">
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="notificationPositionDialog"
+            :visible.sync="notificationPositionDialog.visible" title="알림 위치" width="400px">
             <div style="font-size:12px;">알림 위치를 선택해주세요.</div><svg version="1.1"
                 xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
                 viewBox="0 0 300 200" style="margin-top:15px;" xml:space="preserve">
@@ -2872,118 +3051,119 @@
                 </div>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="notyFeedFiltersDialog" :visible.sync="notyFeedFiltersDialog.visible"
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="notyFeedFiltersDialog" :visible.sync="notyFeedFiltersDialog.visible"
             title="알림 필터" width="500px">
             <div class="toggle-list">
                 <div class="toggle-item"><span class="toggle-name">OnPlayerJoining</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.OnPlayerJoining" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">OnPlayerJoined</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.OnPlayerJoined" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
-                        <el-radio-button label="Everyone"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
+                        <el-radio-button label="Everyone">모두</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">OnPlayerLeft</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.OnPlayerLeft" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
-                        <el-radio-button label="Everyone"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
+                        <el-radio-button label="Everyone">모두</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Online</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.Online" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Offline</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.Offline" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">GPS</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.GPS" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Status</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.Status" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Invite</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.invite" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Request Invite</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.requestInvite" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Invite Response</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.inviteResponse" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Request Invite Response</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.requestInviteResponse" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Friend Request</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.friendRequest" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="On"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="On">켜기</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">New Friend</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.Friend" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="On"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="On">켜기</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Unfriend</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.Unfriend" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="On"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="On">켜기</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Display Name</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.DisplayName" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Trust Level</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.TrustLevel" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Portal Spawn<el-tooltip placement="top"
@@ -2992,92 +3172,89 @@
                                 class="el-icon-warning" style="cursor:pointer"
                                 @click="openExternalLink(recommendedSteamParams)"></i></el-tooltip></span>
                     <el-radio-group v-model="sharedFeedFilters.noty.PortalSpawn" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
-                        <el-radio-button label="Everyone"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
+                        <el-radio-button label="Everyone">모두</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Video Play<el-tooltip placement="top"
                             style="margin-left:5px" content="Requires VRCX YouTube API option enabled"><i
                                 class="el-icon-warning"></i></el-tooltip></span>
                     <el-radio-group v-model="sharedFeedFilters.noty.VideoPlay" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="On"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="On">켜기</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Events</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.Event" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="On"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="On">켜기</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Blocked Player Joins</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.BlockedOnPlayerJoined" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
-                        <el-radio-button label="Everyone"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
+                        <el-radio-button label="Everyone">모두</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Blocked Player Leaves</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.BlockedOnPlayerLeft" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
-                        <el-radio-button label="Everyone"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
+                        <el-radio-button label="Everyone">모두</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Muted Player Joins</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.MutedOnPlayerJoined" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
-                        <el-radio-button label="Everyone"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
+                        <el-radio-button label="Everyone">모두</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Muted Player Leaves</span>
                     <el-radio-group v-model="sharedFeedFilters.noty.MutedOnPlayerLeft" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
-                        <el-radio-button label="Everyone"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
+                        <el-radio-button label="Everyone">모두</el-radio-button>
                     </el-radio-group>
                 </div><template v-if="photonLoggingEnabled"><br>
-                    <div class="toggle-item"><span class="toggle-name">Photon Event Logging<el-tooltip placement="top"
-                                style="margin-left:5px" content="(click for more info)"><i class="el-icon-warning"
-                                    style="cursor:pointer" @click="openExternalLink(recommendedSteamParams)"></i>
-                            </el-tooltip></span></div>
+                    <div class="toggle-item"><span class="toggle-name">Photon Event Logging</span></div>
                     <div class="toggle-item"><span class="toggle-name">Lobby Avatar Change</span>
                         <el-radio-group v-model="sharedFeedFilters.noty.AvatarChange" size="mini">
-                            <el-radio-button label="Off"></el-radio-button>
-                            <el-radio-button label="VIP"></el-radio-button>
-                            <el-radio-button label="Friends"></el-radio-button>
-                            <el-radio-button label="Everyone"></el-radio-button>
+                            <el-radio-button label="Off">끄기</el-radio-button>
+                            <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                            <el-radio-button label="Friends">친구</el-radio-button>
+                            <el-radio-button label="Everyone">모두</el-radio-button>
                         </el-radio-group>
                     </div>
                     <div class="toggle-item"><span class="toggle-name">Blocked</span>
                         <el-radio-group v-model="sharedFeedFilters.noty.Blocked" size="mini">
-                            <el-radio-button label="Off"></el-radio-button>
-                            <el-radio-button label="On"></el-radio-button>
+                            <el-radio-button label="Off">끄기</el-radio-button>
+                            <el-radio-button label="On">켜기</el-radio-button>
                         </el-radio-group>
                     </div>
                     <div class="toggle-item"><span class="toggle-name">Unblocked</span>
                         <el-radio-group v-model="sharedFeedFilters.noty.Unblocked" size="mini">
-                            <el-radio-button label="Off"></el-radio-button>
-                            <el-radio-button label="On"></el-radio-button>
+                            <el-radio-button label="Off">끄기</el-radio-button>
+                            <el-radio-button label="On">켜기</el-radio-button>
                         </el-radio-group>
                     </div>
                     <div class="toggle-item"><span class="toggle-name">Muted</span>
                         <el-radio-group v-model="sharedFeedFilters.noty.Muted" size="mini">
-                            <el-radio-button label="Off"></el-radio-button>
-                            <el-radio-button label="On"></el-radio-button>
+                            <el-radio-button label="Off">끄기</el-radio-button>
+                            <el-radio-button label="On">켜기</el-radio-button>
                         </el-radio-group>
                     </div>
                     <div class="toggle-item"><span class="toggle-name">Unmuted</span>
                         <el-radio-group v-model="sharedFeedFilters.noty.Unmuted" size="mini">
-                            <el-radio-button label="Off"></el-radio-button>
-                            <el-radio-button label="On"></el-radio-button>
+                            <el-radio-button label="Off">끄기</el-radio-button>
+                            <el-radio-button label="On">켜기</el-radio-button>
                         </el-radio-group>
                     </div>
                 </template>
@@ -3087,124 +3264,125 @@
                 </el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="wristFeedFiltersDialog" :visible.sync="wristFeedFiltersDialog.visible"
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="wristFeedFiltersDialog" :visible.sync="wristFeedFiltersDialog.visible"
             title="손목 피드 필터" width="500px">
             <div class="toggle-list">
                 <div class="toggle-item"><span class="toggle-name">Self Location</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.Location" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="On"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="On">켜기</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">OnPlayerJoining</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.OnPlayerJoining" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">OnPlayerJoined</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.OnPlayerJoined" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
-                        <el-radio-button label="Everyone"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
+                        <el-radio-button label="Everyone">모두</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">OnPlayerLeft</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.OnPlayerLeft" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
-                        <el-radio-button label="Everyone"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
+                        <el-radio-button label="Everyone">모두</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Online</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.Online" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Offline</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.Offline" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">GPS</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.GPS" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Status</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.Status" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Invite</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.invite" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Request Invite</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.requestInvite" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Invite Response</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.inviteResponse" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Request Invite Response</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.requestInviteResponse" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Friend Request</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.friendRequest" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="On"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="On">켜기</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">New Friend</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.Friend" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="On"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="On">켜기</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Unfriend</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.Unfriend" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="On"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="On">켜기</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Display Name</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.DisplayName" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Trust Level</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.TrustLevel" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Portal Spawn<el-tooltip placement="top"
@@ -3213,92 +3391,89 @@
                                 class="el-icon-warning" style="cursor:pointer"
                                 @click="openExternalLink(recommendedSteamParams)"></i></el-tooltip></span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.PortalSpawn" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
-                        <el-radio-button label="Everyone"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
+                        <el-radio-button label="Everyone">모두</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Video Play<el-tooltip placement="top"
                             style="margin-left:5px" content="Requires VRCX YouTube API option enabled"><i
                                 class="el-icon-warning"></i></el-tooltip></span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.VideoPlay" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="On"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="On">켜기</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Events</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.Event" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="On"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="On">켜기</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Blocked Player Joins</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.BlockedOnPlayerJoined" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
-                        <el-radio-button label="Everyone"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
+                        <el-radio-button label="Everyone">모두</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Blocked Player Leaves</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.BlockedOnPlayerLeft" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
-                        <el-radio-button label="Everyone"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
+                        <el-radio-button label="Everyone">모두</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Muted Player Joins</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.MutedOnPlayerJoined" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
-                        <el-radio-button label="Everyone"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
+                        <el-radio-button label="Everyone">모두</el-radio-button>
                     </el-radio-group>
                 </div>
                 <div class="toggle-item"><span class="toggle-name">Muted Player Leaves</span>
                     <el-radio-group v-model="sharedFeedFilters.wrist.MutedOnPlayerLeft" size="mini">
-                        <el-radio-button label="Off"></el-radio-button>
-                        <el-radio-button label="VIP"></el-radio-button>
-                        <el-radio-button label="Friends"></el-radio-button>
-                        <el-radio-button label="Everyone"></el-radio-button>
+                        <el-radio-button label="Off">끄기</el-radio-button>
+                        <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                        <el-radio-button label="Friends">친구</el-radio-button>
+                        <el-radio-button label="Everyone">모두</el-radio-button>
                     </el-radio-group>
                 </div><template v-if="photonLoggingEnabled"><br>
-                    <div class="toggle-item"><span class="toggle-name">Photon Event Logging<el-tooltip placement="top"
-                                style="margin-left:5px" content="(click for more info)"><i class="el-icon-warning"
-                                    style="cursor:pointer" @click="openExternalLink(recommendedSteamParams)"></i>
-                            </el-tooltip></span></div>
+                    <div class="toggle-item"><span class="toggle-name">Photon Event Logging</span></div>
                     <div class="toggle-item"><span class="toggle-name">Lobby Avatar Change</span>
                         <el-radio-group v-model="sharedFeedFilters.wrist.AvatarChange" size="mini">
-                            <el-radio-button label="Off"></el-radio-button>
-                            <el-radio-button label="VIP"></el-radio-button>
-                            <el-radio-button label="Friends"></el-radio-button>
-                            <el-radio-button label="Everyone"></el-radio-button>
+                            <el-radio-button label="Off">끄기</el-radio-button>
+                            <el-radio-button label="VIP">즐겨찾기</el-radio-button>
+                            <el-radio-button label="Friends">친구</el-radio-button>
+                            <el-radio-button label="Everyone">모두</el-radio-button>
                         </el-radio-group>
                     </div>
                     <div class="toggle-item"><span class="toggle-name">Blocked</span>
                         <el-radio-group v-model="sharedFeedFilters.wrist.Blocked" size="mini">
-                            <el-radio-button label="Off"></el-radio-button>
-                            <el-radio-button label="On"></el-radio-button>
+                            <el-radio-button label="Off">끄기</el-radio-button>
+                            <el-radio-button label="On">켜기</el-radio-button>
                         </el-radio-group>
                     </div>
                     <div class="toggle-item"><span class="toggle-name">Unblocked</span>
                         <el-radio-group v-model="sharedFeedFilters.wrist.Unblocked" size="mini">
-                            <el-radio-button label="Off"></el-radio-button>
-                            <el-radio-button label="On"></el-radio-button>
+                            <el-radio-button label="Off">끄기</el-radio-button>
+                            <el-radio-button label="On">켜기</el-radio-button>
                         </el-radio-group>
                     </div>
                     <div class="toggle-item"><span class="toggle-name">Muted</span>
                         <el-radio-group v-model="sharedFeedFilters.wrist.Muted" size="mini">
-                            <el-radio-button label="Off"></el-radio-button>
-                            <el-radio-button label="On"></el-radio-button>
+                            <el-radio-button label="Off">끄기</el-radio-button>
+                            <el-radio-button label="On">켜기</el-radio-button>
                         </el-radio-group>
                     </div>
                     <div class="toggle-item"><span class="toggle-name">Unmuted</span>
                         <el-radio-group v-model="sharedFeedFilters.wrist.Unmuted" size="mini">
-                            <el-radio-button label="Off"></el-radio-button>
-                            <el-radio-button label="On"></el-radio-button>
+                            <el-radio-button label="Off">끄기</el-radio-button>
+                            <el-radio-button label="On">켜기</el-radio-button>
                         </el-radio-group>
                     </div>
                 </template>
@@ -3307,8 +3482,9 @@
                 <el-button type="primary" size="small" @click="saveSharedFeedFilters">저장</el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="editInviteMessageDialog" :visible.sync="editInviteMessageDialog.visible"
-            title="초대 메시지 편집" width="400px">
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="editInviteMessageDialog"
+            :visible.sync="editInviteMessageDialog.visible" title="초대 메시지 편집" width="400px">
             <div style="font-size:12px"><span>1 시간의 변경 쿨타임이 있습니다.</span></div>
             <el-input type="textarea" v-model="editInviteMessageDialog.newMessage" size="mini" maxlength="64"
                 show-word-limit :autosize="{ minRows:2, maxRows:5 }" placeholder="" style="margin-top:10px"></el-input>
@@ -3317,7 +3493,8 @@
                 <el-button type="primary" size="small" @click="saveEditInviteMessage">저장</el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="editAndSendInviteResponseDialog"
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="editAndSendInviteResponseDialog"
             :visible.sync="editAndSendInviteResponseDialog.visible" title="초대 메시지 편집 및 보내기" width="400px">
             <div style="font-size:12px"><span>1 시간의 변경 쿨타임이 있습니다.</span></div>
             <el-input type="textarea" v-model="editAndSendInviteResponseDialog.newMessage" size="mini" maxlength="64"
@@ -3327,19 +3504,20 @@
                 <el-button type="primary" size="small" @click="saveEditAndSendInviteResponse">보내기</el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="sendInviteResponseDialog" :visible.sync="sendInviteResponseDialogVisible"
-            title="초대 반응 메시지 보내기" width="800px"><template v-if="API.currentUser.$isVRCPlus"><input
-                    class="inviteImageUploadButton" type="file" accept="image/png"
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="sendInviteResponseDialog"
+            :visible.sync="sendInviteResponseDialogVisible" title="초대 반응 메시지 보내기" width="800px"><template
+                v-if="API.currentUser.$isVRCPlus"><input class="inviteImageUploadButton" type="file" accept="image/png"
                     @change="inviteImageUpload"></template>
             <data-tables v-bind="inviteResponseMessageTable" @row-click="showSendInviteResponseConfirmDialog"
                 style="margin-top:10px;cursor:pointer">
-                <el-table-column label="Slot" prop="slot" sortable="custom" width="70"></el-table-column>
+                <el-table-column label="번호" prop="slot" sortable="custom" width="70"></el-table-column>
                 <el-table-column label="메시지" prop="message"></el-table-column>
                 <el-table-column label="쿨타임" prop="updatedAt" sortable="custom" width="110" align="right">
                     <template v-once #default="scope">
                         <countdown-timer :datetime="scope.row.updatedAt" :hours="1"></countdown-timer>
                     </template></el-table-column>
-                <el-table-column label="Action" width="60" align="right"><template v-once #default="scope">
+                <el-table-column label="메뉴" width="60" align="right"><template v-once #default="scope">
                         <el-button type="text" icon="el-icon-edit" size="mini"
                             @click="showEditAndSendInviteResponseDialog('response', scope.row)"></el-button>
                     </template></el-table-column>
@@ -3348,19 +3526,20 @@
                 <el-button type="small" @click="API.refreshInviteMessageTableData('response')">새로고침</el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="sendInviteRequestResponseDialog"
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="sendInviteRequestResponseDialog"
             :visible.sync="sendInviteRequestResponseDialogVisible" title="초대 요청 반응 메시지 보내기"
             width="800px"><template v-if="API.currentUser.$isVRCPlus"><input class="inviteImageUploadButton" type="file"
                     accept="image/png" @change="inviteImageUpload"></template>
             <data-tables v-bind="inviteRequestResponseMessageTable" @row-click="showSendInviteResponseConfirmDialog"
                 style="margin-top:10px;cursor:pointer">
-                <el-table-column label="Slot" prop="slot" sortable="custom" width="70"></el-table-column>
+                <el-table-column label="번호" prop="slot" sortable="custom" width="70"></el-table-column>
                 <el-table-column label="메시지" prop="message"></el-table-column>
                 <el-table-column label="쿨타임" prop="updatedAt" sortable="custom" width="110" align="right">
                     <template v-once #default="scope">
                         <countdown-timer :datetime="scope.row.updatedAt" :hours="1"></countdown-timer>
                     </template></el-table-column>
-                <el-table-column label="Action" width="60" align="right"><template v-once #default="scope">
+                <el-table-column label="메뉴" width="60" align="right"><template v-once #default="scope">
                         <el-button type="text" icon="el-icon-edit" size="mini"
                             @click="showEditAndSendInviteResponseDialog('requestResponse', scope.row)"></el-button>
                     </template></el-table-column>
@@ -3370,26 +3549,28 @@
                 </el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="sendInviteResponseConfirmDialog"
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="sendInviteResponseConfirmDialog"
             :visible.sync="sendInviteResponseConfirmDialog.visible" title="초대 반응 메시지 보내기" width="400px">
             <div style="font-size:12px"><span>정말 메시지를 보낼까요?</span></div><template #footer>
                 <el-button type="small" @click="cancelInviteResponseConfirm">취소</el-button>
                 <el-button type="primary" size="small" @click="sendInviteResponseConfirm">확인</el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="sendInviteDialog" :visible.sync="sendInviteDialogVisible"
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="sendInviteDialog" :visible.sync="sendInviteDialogVisible"
             title="초대 메시지 보내기" width="800px"><template v-if="API.currentUser.$isVRCPlus"><input
                     class="inviteImageUploadButton" type="file" accept="image/png"
                     @change="inviteImageUpload"></template>
             <data-tables v-bind="inviteMessageTable" @row-click="showSendInviteConfirmDialog"
                 style="margin-top:10px;cursor:pointer">
-                <el-table-column label="Slot" prop="slot" sortable="custom" width="70"></el-table-column>
+                <el-table-column label="번호" prop="slot" sortable="custom" width="70"></el-table-column>
                 <el-table-column label="메시지" prop="message"></el-table-column>
                 <el-table-column label="쿨타임" prop="updatedAt" sortable="custom" width="110" align="right">
                     <template v-once #default="scope">
                         <countdown-timer :datetime="scope.row.updatedAt" :hours="1"></countdown-timer>
                     </template></el-table-column>
-                <el-table-column label="Action" width="60" align="right"><template v-once #default="scope">
+                <el-table-column label="메뉴" width="60" align="right"><template v-once #default="scope">
                         <el-button type="text" icon="el-icon-edit" size="mini"
                             @click="showEditAndSendInviteDialog('message', scope.row)"></el-button>
                     </template></el-table-column>
@@ -3398,19 +3579,20 @@
                 <el-button type="small" @click="API.refreshInviteMessageTableData('message')">새로고침</el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="sendInviteRequestDialog" :visible.sync="sendInviteRequestDialogVisible"
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="sendInviteRequestDialog" :visible.sync="sendInviteRequestDialogVisible"
             title="초대 요청 메시지 보내기" width="800px"><template v-if="API.currentUser.$isVRCPlus"><input
                     class="inviteImageUploadButton" type="file" accept="image/png"
                     @change="inviteImageUpload"></template>
             <data-tables v-bind="inviteRequestMessageTable" @row-click="showSendInviteConfirmDialog"
                 style="margin-top:10px;cursor:pointer">
-                <el-table-column label="Slot" prop="slot" sortable="custom" width="70"></el-table-column>
+                <el-table-column label="번호" prop="slot" sortable="custom" width="70"></el-table-column>
                 <el-table-column label="메시지" prop="message"></el-table-column>
                 <el-table-column label="쿨타임" prop="updatedAt" sortable="custom" width="110" align="right">
                     <template v-once #default="scope">
                         <countdown-timer :datetime="scope.row.updatedAt" :hours="1"></countdown-timer>
                     </template></el-table-column>
-                <el-table-column label="Action" width="60" align="right"><template v-once #default="scope">
+                <el-table-column label="메뉴" width="60" align="right"><template v-once #default="scope">
                         <el-button type="text" icon="el-icon-edit" size="mini"
                             @click="showEditAndSendInviteDialog('request', scope.row)"></el-button>
                     </template></el-table-column>
@@ -3419,15 +3601,17 @@
                 <el-button type="small" @click="API.refreshInviteMessageTableData('request')">새로고침</el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="sendInviteConfirmDialog" :visible.sync="sendInviteConfirmDialog.visible"
-            title="초대 메시지 보내기" width="400px">
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="sendInviteConfirmDialog"
+            :visible.sync="sendInviteConfirmDialog.visible" title="초대 메시지 보내기" width="400px">
             <div style="font-size:12px"><span>정말 메시지를 보낼까요?</span></div><template #footer>
                 <el-button type="small" @click="cancelInviteConfirm">취소</el-button>
                 <el-button type="primary" size="small" @click="sendInviteConfirm">확인</el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="editAndSendInviteDialog" :visible.sync="editAndSendInviteDialog.visible"
-            title="초대 메시지 수정 및 보내기" width="400px">
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="editAndSendInviteDialog"
+            :visible.sync="editAndSendInviteDialog.visible" title="초대 메시지 수정 및 보내기" width="400px">
             <div style="font-size:12px"><span>1 시간의 변경 쿨타임이 있습니다.</span></div>
             <el-input type="textarea" v-model="editAndSendInviteDialog.newMessage" size="mini" maxlength="64"
                 show-word-limit :autosize="{ minRows:2, maxRows:5 }" placeholder="" style="margin-top:10px"></el-input>
@@ -3436,7 +3620,8 @@
                 <el-button type="primary" size="small" @click="saveEditAndSendInvite">보내기</el-button>
             </template>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="changeAvatarImageDialog" :visible.sync="changeAvatarImageDialogVisible"
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="changeAvatarImageDialog" :visible.sync="changeAvatarImageDialogVisible"
             title="아바타 이미지 변경" width="800px">
             <div v-loading="changeAvatarImageDialogLoading"><input type="file" accept="image/*"
                     @change="onFileChangeAvatarImage" id="AvatarImageUploadButton" style="display:none">
@@ -3453,7 +3638,8 @@
                 </div>
             </div>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="changeWorldImageDialog" :visible.sync="changeWorldImageDialogVisible"
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="changeWorldImageDialog" :visible.sync="changeWorldImageDialogVisible"
             title="월드 이미지 변경" width="800px">
             <div v-loading="changeWorldImageDialogLoading"><input type="file" accept="image/*"
                     @change="onFileChangeWorldImage" id="WorldImageUploadButton" style="display:none">
@@ -3471,7 +3657,8 @@
                 </div>
             </div>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="previousImagesDialog" :visible.sync="previousImagesDialogVisible"
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="previousImagesDialog" :visible.sync="previousImagesDialogVisible"
             title="이전 이미지" width="800px">
             <div>
                 <div style="display:inline-block" v-for="image in previousImagesTable" :key="image.version"
@@ -3483,8 +3670,9 @@
                 </div>
             </div>
         </el-dialog>
-        <el-dialog class="x-dialog" ref="galleryDialog" :visible.sync="galleryDialogVisible" title="갤러리 및 아이콘"
-            width="100%">
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="galleryDialog" :visible.sync="galleryDialogVisible"
+            title="갤러리 및 아이콘" width="100%">
             <el-tabs type="card">
                 <el-tab-pane v-loading="galleryDialogGalleryLoading"><span slot="label">갤러리<span
                             style="color:#909399;font-size:12px;margin-left:5px">{{ galleryTable.length
@@ -3539,9 +3727,78 @@
                 </el-tab-pane>
             </el-tabs>
         </el-dialog>
-        <el-dialog class="x-dialog" :visible.sync="ossDialog" title="오픈 소스 소프트웨어 공지" width="650px">
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="previousInstancesUserDialog"
+            :visible.sync="previousInstancesUserDialog.visible" title="이전 인스턴스" width="800px"><span
+                v-text="previousInstancesUserDialog.userRef.displayName" style="font-size:14px"></span>
+            <el-input v-model="previousInstancesUserDialogTable.filters[0].value" placeholder="검색"
+                style="display:block;width:150px;margin-top:15px"></el-input>
+            <data-tables v-bind="previousInstancesUserDialogTable" v-loading="previousInstancesUserDialog.loading"
+                style="margin-top:10px">
+                <el-table-column label="날짜" prop="created_at" sortable width="110"><template v-once #default="scope">
+                        <el-tooltip placement="left"><template #content><span>{{ scope.row.created_at |
+                                    formatDate('long') }}</span></template><span>{{ scope.row.created_at |
+                                formatDate('short') }}</span></el-tooltip>
+                    </template></el-table-column>
+                <el-table-column label="월드" prop="name" sortable><template v-once #default="scope">
+                        <location :location="scope.row.location" :hint="scope.row.name"></location>
+                    </template></el-table-column>
+                <el-table-column label="인스턴스 생성자" prop="location" width="160"><template v-once
+                        #default="scope"><span class="x-link"
+                            v-text="getDisplayNameFromUserId(scope.row.$location.userId)"
+                            @click="showUserDialog(scope.row.$location.userId)"
+                            style="cursor:pointer"></span></template></el-table-column>
+                <el-table-column label="시간" prop="time" width="90" sortable><template v-once #default="scope"><span
+                            v-text="scope.row.timer"></span></template></el-table-column>
+                <el-table-column label="삭제" width="60" align="right"><template v-once #default="scope">
+                        <el-button type="text" icon="el-icon-info" size="mini"
+                            @click="showLaunchDialog(scope.row.location)"></el-button>
+                        <el-button type="text" icon="el-icon-close" size="mini"
+                            @click="confirmDeleteGameLogUserInstance(scope.row)"></el-button>
+                    </template></el-table-column>
+            </data-tables>
+        </el-dialog>
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" ref="previousInstancesWorldDialog"
+            :visible.sync="previousInstancesWorldDialog.visible" title="이전 인스턴스" width="800px"><span
+                v-text="previousInstancesWorldDialog.worldRef.name" style="font-size:14px"></span>
+            <el-input v-model="previousInstancesWorldDialogTable.filters[0].value" placeholder="검색"
+                style="display:block;width:150px;margin-top:15px"></el-input>
+            <data-tables v-bind="previousInstancesWorldDialogTable" v-loading="previousInstancesWorldDialog.loading"
+                style="margin-top:10px">
+                <el-table-column label="날짜" prop="created_at" sortable width="110"><template v-once #default="scope">
+                        <el-tooltip placement="left"><template #content><span>{{ scope.row.created_at |
+                                    formatDate('long') }}</span></template><span>{{ scope.row.created_at |
+                                formatDate('short') }}</span></el-tooltip>
+                    </template></el-table-column>
+                <el-table-column label="인스턴스 이름" prop="name"><template v-once #default="scope"><span
+                            class="x-link" @click="showLaunchDialog(scope.row.location)"><span>#{{
+                                scope.row.$location.instanceName }} {{ scope.row.$location.accessType }}</span><span
+                                class="famfamfam-flags europeanunion" v-if="scope.row.$location.region === 'eu'"
+                                style="display:inline-block;margin-left:5px"></span><span class="famfamfam-flags jp"
+                                v-else-if="scope.row.$location.region === 'jp'"
+                                style="display:inline-block;margin-left:5px"></span><span class="flag-icon-use"
+                                v-else-if="scope.row.$location.region === 'use'"
+                                style="display:inline-block;margin-left:5px"></span><span class="flag-icon-usw" v-else
+                                style="display:inline-block;margin-left:5px"></span><i class="el-icon-lock"
+                                v-if="scope.row.$location.strict"
+                                style="display:inline-block;margin-left:5px"></i></span></template></el-table-column>
+                <el-table-column label="인스턴스 생성자" prop="location"><template v-once #default="scope"><span
+                            class="x-link" v-text="getDisplayNameFromUserId(scope.row.$location.userId)"
+                            @click="showUserDialog(scope.row.$location.userId)"
+                            style="cursor:pointer"></span></template></el-table-column>
+                <el-table-column label="시간" prop="time" width="90" sortable><template v-once #default="scope"><span
+                            v-text="scope.row.timer"></span></template></el-table-column>
+                <el-table-column label="삭제" width="60" align="right"><template v-once #default="scope">
+                        <el-button type="text" icon="el-icon-close" size="mini"
+                            @click="confirmDeleteGameLogWorldInstance(scope.row)"></el-button>
+                    </template></el-table-column>
+            </data-tables>
+        </el-dialog>
+        <el-dialog class="x-dialog" :before-close="beforeDialogClose" @mousedown.native="dialogMouseDown"
+            @mouseup.native="dialogMouseUp" :visible.sync="ossDialog" title="오픈 소스 소프트웨어 공지" width="650px">
             <div style="height:350px;overflow:hidden scroll;word-break:break-all">
-                <div><span>VRCX는 오픈소스 소프트웨어를 기반으로 합니다.</span>
+                <div><span>VRCX는 오픈소스 소프트웨어를 기반으로 합니다. It was possible because of their contribution.</span>
                 </div>
                 <div style="margin-top:15px">
                     <p style="font-weight:bold">animate.css</p>
@@ -3826,30 +4083,6 @@ SOFTWARE.</pre>
                     <pre style="font-size:12px;white-space:pre-line">The MIT License (MIT)
 
 Copyright (c) 2016 Awe
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.</pre>
-                </div>
-                <div style="margin-top:15px">
-                    <p style="font-weight:bold">vue-swatches</p>
-                    <pre style="font-size:12px;white-space:pre-line">MIT License
-
-Copyright (c) 2018 - Present Diego Jara
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
