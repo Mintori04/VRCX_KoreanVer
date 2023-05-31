@@ -1,3 +1,7 @@
+# Update
+이 프로젝트는 더 이상 업데이트되지 않습니다.
+VRCX의 공식 한글화를 사용하시기 바랍니다.
+
 # VRCX_KoreanVer란?
 
 VRCX_KoreanVer은 VRCX의 한글화 버전 입니다. 
